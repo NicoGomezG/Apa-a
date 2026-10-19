@@ -1,0 +1,61 @@
+// Esquema de datos de Apaña.
+//
+// Todas las tablas viven en el schema `app` de Postgres, que NO está expuesto
+// por la Data API de Supabase: solo el backend (`backend/`) lee y escribe acá.
+// La identidad (correo, contraseña, OAuth) la maneja Supabase Auth en `auth.users`;
+// `profiles.id` es el mismo UUID (`sub` del JWT).
+//
+// Convenciones: PK uuid, timestamps `timestamptz`, dinero en `BigInt` de unidad
+// mínima + moneda (nunca Float), nombres en snake_case en la base.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["app"]
+}
+
+model Profile {
+  id          String           @id @db.Uuid
+  displayName String?          @map("display_name") @db.VarChar(80)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  preferences UserPreferences?
+
+  @@map("profiles")
+  @@schema("app")
+}
+
+model UserPreferences {
+  userId    String   @id @map("user_id") @db.Uuid
+  timezone  String   @default("America/Santiago") @db.VarChar(64)
+  locale    String   @default("es-CL") @db.VarChar(16)
+  currency  String   @default("CLP") @db.Char(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile   Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+  @@schema("app")
+}
+
+// Bitácora de acciones relevantes. `user_id` no es FK a propósito: el registro
+// sobrevive a la eliminación de la cuenta, y no guarda datos personales en
+// `metadata` (solo identificadores y nombres de campos).
+model AuditLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String   @db.VarChar(64)
+  entityType String?  @map("entity_type") @db.VarChar(64)
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json?    @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("audit_logs")
+  @@schema("app")
+}

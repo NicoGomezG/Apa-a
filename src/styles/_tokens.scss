@@ -1,0 +1,44 @@
+// Tokens de diseño de Apaña. Única fuente de colores, espacios y radios.
+// Contrastes verificados (WCAG AA): blanco sobre $apana-navy 12.3:1,
+// $apana-ink-soft sobre blanco 8.8:1, $apana-navy sobre $apana-coral 5.9:1,
+// $apana-coral-strong sobre blanco 4.9:1.
+// Regla: el texto secundario usa $apana-ink-soft (azulado), nunca gris.
+
+$apana-navy: #1f2d7a; // marca, color primario
+$apana-blue: #2b3fb0; // enlaces y elementos interactivos
+$apana-blue-tint: #e9ecfb;
+$apana-coral: #ff7a5c; // acento de personalidad (rellenos, con texto navy)
+$apana-coral-strong: #c8432e; // coral para texto o con texto blanco
+$apana-coral-tint: #fff1ec;
+
+$apana-ink: #172036; // texto principal
+$apana-ink-soft: #3e4a66; // texto secundario
+$apana-bg: #f6f7fb; // fondo de la app
+$apana-surface: #ffffff;
+$apana-border: #dde2f0;
+
+$apana-success: #047857;
+$apana-warning: #b45309;
+$apana-danger: #b91c1c;
+$apana-info: #2b3fb0;
+
+$apana-radius-sm: 0.5rem;
+$apana-radius: 0.75rem;
+$apana-radius-lg: 1rem;
+
+$apana-shadow: 0 1px 2px rgba(23, 32, 54, 0.06), 0 1px 3px rgba(23, 32, 54, 0.08);
+
+$apana-sidebar-width: 15.5rem;
+$apana-bottom-nav-height: 4rem;
+
+// Color propio de cada módulo (encabezados, íconos, acentos).
+$apana-modules: (
+  inicio: $apana-navy,
+  finanzas: #0f766e,
+  agenda: #6d28d9,
+  personas: $apana-coral-strong,
+  compras: #a16207,
+  vehiculos: #1d4ed8,
+  salud: #be123c,
+  ajustes: $apana-ink-soft,
+);

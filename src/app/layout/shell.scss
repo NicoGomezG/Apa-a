@@ -1,0 +1,167 @@
+@import 'tokens';
+@import 'bootstrap/scss/functions';
+@import 'bootstrap/scss/variables';
+@import 'bootstrap/scss/mixins/breakpoints';
+
+.shell-skip {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1100;
+  background: $apana-surface;
+  padding: 0.5rem 1rem;
+  border-radius: $apana-radius-sm;
+}
+
+.shell {
+  min-height: 100dvh;
+}
+
+.shell-sidebar {
+  display: none;
+
+  @include media-breakpoint-up(lg) {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: $apana-sidebar-width;
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 0.75rem;
+    background: $apana-surface;
+    border-right: 1px solid $apana-border;
+  }
+}
+
+.shell-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: $apana-radius-sm;
+  color: $apana-ink;
+  font-weight: 600;
+  text-decoration: none;
+
+  i {
+    width: 1.25rem;
+    text-align: center;
+    color: var(--apana-section-color);
+  }
+
+  &:hover {
+    background: $apana-bg;
+  }
+
+  &.active {
+    background: $apana-blue-tint;
+    color: $apana-navy;
+  }
+}
+
+.shell-main {
+  @include media-breakpoint-up(lg) {
+    margin-left: $apana-sidebar-width;
+  }
+}
+
+.shell-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1010;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba($apana-bg, 0.94);
+  border-bottom: 1px solid $apana-border;
+  backdrop-filter: blur(6px);
+
+  @include media-breakpoint-up(lg) {
+    padding: 0.75rem 2rem;
+  }
+}
+
+.shell-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 0;
+  background: $apana-navy;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+
+  &::after {
+    display: none;
+  }
+}
+
+.shell-content {
+  padding: 1.25rem 1rem calc(#{$apana-bottom-nav-height} + 1.5rem + env(safe-area-inset-bottom));
+  max-width: 80rem;
+  outline: none;
+
+  @include media-breakpoint-up(lg) {
+    padding: 2rem;
+  }
+}
+
+.shell-bottom-nav {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 1020;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  height: calc(#{$apana-bottom-nav-height} + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: $apana-surface;
+  border-top: 1px solid $apana-border;
+
+  @include media-breakpoint-up(lg) {
+    display: none;
+  }
+
+  a,
+  button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    border: 0;
+    background: none;
+    color: $apana-ink-soft;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-decoration: none;
+
+    i {
+      font-size: 1.15rem;
+    }
+
+    &.active {
+      color: $apana-navy;
+
+      i {
+        color: var(--apana-section-color, #{$apana-navy});
+      }
+    }
+  }
+}
+
+.shell-more {
+  position: fixed;
+  inset: auto 0.75rem calc(#{$apana-bottom-nav-height} + 0.5rem + env(safe-area-inset-bottom)) 0.75rem;
+  z-index: 1020;
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: $apana-surface;
+  border: 1px solid $apana-border;
+  border-radius: $apana-radius;
+  box-shadow: 0 8px 24px rgba($apana-ink, 0.15);
+
+  @include media-breakpoint-up(lg) {
+    display: none;
+  }
+}

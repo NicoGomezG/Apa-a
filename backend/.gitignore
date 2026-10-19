@@ -1,0 +1,8 @@
+node_modules
+/dist
+/src/generated
+
+# Variables de entorno: nunca al repo (solo el ejemplo)
+.env
+.env.*
+!.env.example

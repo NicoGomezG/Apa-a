@@ -1,0 +1,45 @@
+<header class="mb-4">
+  <p class="text-secondary text-capitalize-first mb-1">{{ today() }}</p>
+  <h1 class="h2 mb-0">
+    {{ greeting() }}@if (profile.firstName(); as name) {, {{ name }}}
+  </h1>
+</header>
+
+<section class="apana-card mb-4" aria-labelledby="primeros-pasos">
+  <h2 id="primeros-pasos" class="apana-section-title">
+    <i class="fa-solid fa-flag-checkered" aria-hidden="true"></i>
+    Primeros pasos
+  </h2>
+  <ul class="list-unstyled d-grid gap-2 mb-0">
+    @for (step of steps(); track step.label) {
+      <li class="d-flex align-items-center gap-2">
+        @if (step.done) {
+          <i class="fa-solid fa-circle-check text-success" aria-hidden="true"></i>
+          <span>{{ step.label }}</span>
+          <span class="visually-hidden">(listo)</span>
+        } @else {
+          <i class="fa-regular fa-circle text-secondary" aria-hidden="true"></i>
+          @if (step.path) {
+            <a [routerLink]="step.path">{{ step.label }}</a>
+          } @else {
+            <span>{{ step.label }}</span>
+          }
+        }
+      </li>
+    }
+  </ul>
+</section>
+
+<div class="apana-grid">
+  @for (section of sections; track section.key) {
+    <section class="apana-card" [style.--apana-section-color]="'var(--apana-module-' + section.key + ')'">
+      <h2 class="apana-section-title">
+        <i class="fa-solid {{ section.icon }}" aria-hidden="true"></i>
+        {{ section.title }}
+      </h2>
+      <app-empty-state icon="fa-face-smile" [title]="section.emptyTitle" [description]="section.emptyDescription">
+        <a class="btn btn-sm btn-outline-primary mt-3" [routerLink]="section.path">Ver módulo</a>
+      </app-empty-state>
+    </section>
+  }
+</div>

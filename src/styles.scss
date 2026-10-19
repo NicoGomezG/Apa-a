@@ -1,0 +1,155 @@
+@import 'tokens';
+
+// --- Bootstrap con los tokens de Apaña -------------------------------------
+$primary: $apana-navy;
+$secondary: $apana-ink-soft;
+$success: $apana-success;
+$warning: $apana-warning;
+$danger: $apana-danger;
+$info: $apana-info;
+$light: $apana-bg;
+$dark: $apana-ink;
+
+$body-bg: $apana-bg;
+$body-color: $apana-ink;
+$body-secondary-color: $apana-ink-soft;
+$link-color: $apana-blue;
+$border-color: $apana-border;
+$font-family-sans-serif: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+$headings-font-weight: 700;
+$headings-color: $apana-ink;
+$border-radius: $apana-radius-sm;
+$border-radius-lg: $apana-radius;
+$card-border-color: $apana-border;
+$card-border-radius: $apana-radius;
+$input-border-color: $apana-border;
+$input-placeholder-color: $apana-ink-soft;
+$form-label-font-weight: 600;
+$btn-font-weight: 600;
+$enable-shadows: false;
+$enable-gradients: false;
+
+@import 'bootstrap/scss/bootstrap';
+
+// --- Base ------------------------------------------------------------------
+:root {
+  @each $name, $color in $apana-modules {
+    --apana-module-#{$name}: #{$color};
+  }
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+// Ningún texto en gris: .text-muted / .text-secondary usan el tono azulado.
+.text-muted,
+.text-secondary,
+.form-text {
+  color: $apana-ink-soft !important;
+}
+
+.btn-accent {
+  --bs-btn-color: #{$apana-navy};
+  --bs-btn-bg: #{$apana-coral};
+  --bs-btn-border-color: #{$apana-coral};
+  --bs-btn-hover-color: #{$apana-navy};
+  --bs-btn-hover-bg: #{darken($apana-coral, 6%)};
+  --bs-btn-hover-border-color: #{darken($apana-coral, 6%)};
+  --bs-btn-active-color: #{$apana-navy};
+  --bs-btn-active-bg: #{darken($apana-coral, 10%)};
+  --bs-btn-active-border-color: #{darken($apana-coral, 10%)};
+}
+
+:focus-visible {
+  outline: 3px solid rgba($apana-blue, 0.45);
+  outline-offset: 2px;
+}
+
+// --- Componentes compartidos -----------------------------------------------
+.apana-card {
+  background: $apana-surface;
+  border: 1px solid $apana-border;
+  border-radius: $apana-radius;
+  box-shadow: $apana-shadow;
+  padding: 1.25rem;
+}
+
+.apana-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+
+  .fa-solid,
+  .fa-regular {
+    color: var(--apana-section-color, #{$apana-navy});
+  }
+}
+
+.apana-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+
+  @include media-breakpoint-up(md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @include media-breakpoint-up(xl) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.apana-auth-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem 1rem;
+}
+
+.apana-auth-card {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.apana-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 800;
+  font-size: 1.35rem;
+  color: $apana-navy;
+  text-decoration: none;
+
+  img {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+.apana-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: $apana-ink-soft;
+  font-size: 0.875rem;
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    border-top: 1px solid $apana-border;
+  }
+}
+
+.text-capitalize-first::first-letter {
+  text-transform: uppercase;
+}
