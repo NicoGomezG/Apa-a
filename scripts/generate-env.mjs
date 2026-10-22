@@ -1,7 +1,7 @@
 // Genera src/environments/environment.generated.ts a partir de variables de entorno
 // (o del archivo .env de la raíz en local). Solo valores PÚBLICOS: la URL del
 // proyecto Supabase y su clave publicable. Las claves secretas jamás pasan por acá.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,6 +53,7 @@ if (looksSecret(config.supabasePublishableKey)) {
 }
 
 const file = resolve(root, 'src/environments/environment.generated.ts');
+mkdirSync(dirname(file), { recursive: true });
 writeFileSync(
   file,
   `// Archivo generado por scripts/generate-env.mjs. No editar ni commitear.\n` +
