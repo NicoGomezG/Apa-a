@@ -21,15 +21,21 @@ function readDotEnv(path) {
 const source = { ...readDotEnv(resolve(root, '.env')), ...process.env };
 const isCi = Boolean(source.VERCEL || source.CI);
 
+// En Vercel, las variables con prefijo público (NG_APP_) no pueden ser "secret" y a veces
+// el panel no deja crearlas como "config". Por eso se aceptan también sin prefijo.
 const config = {
-  supabaseUrl: source.NG_APP_SUPABASE_URL ?? '',
-  supabasePublishableKey: source.NG_APP_SUPABASE_PUBLISHABLE_KEY ?? '',
+  supabaseUrl: source.NG_APP_SUPABASE_URL || source.SUPABASE_URL || '',
+  supabasePublishableKey:
+    source.NG_APP_SUPABASE_PUBLISHABLE_KEY || source.SUPABASE_PUBLISHABLE_KEY || '',
   apiUrl: source.NG_APP_API_URL || '/api',
   googleAuthEnabled: source.NG_APP_GOOGLE_AUTH_ENABLED === 'true',
 };
 
 if (source.VERCEL && (!config.supabaseUrl || !config.supabasePublishableKey)) {
-  console.error('Faltan NG_APP_SUPABASE_URL o NG_APP_SUPABASE_PUBLISHABLE_KEY en Vercel.');
+  console.error(
+    'Faltan en Vercel la URL o la clave publicable de Supabase ' +
+      '(NG_APP_SUPABASE_URL / NG_APP_SUPABASE_PUBLISHABLE_KEY, o SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY).',
+  );
   process.exit(1);
 }
 if (!config.supabaseUrl && !isCi) {
