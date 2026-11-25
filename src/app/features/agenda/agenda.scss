@@ -1,0 +1,210 @@
+// Rojo para domingos y feriados: el mismo "danger" de la app (contraste AA sobre blanco).
+.red {
+  color: var(--bs-danger) !important;
+}
+
+.status-paid {
+  color: var(--bs-success);
+}
+.status-pending {
+  color: var(--apana-section-color);
+}
+.status-unconfirmed {
+  color: var(--bs-warning-text-emphasis);
+}
+.status-detail {
+  color: var(--bs-body-color);
+}
+.section-icon {
+  color: var(--apana-section-color);
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.stat-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+// --- Calendario --------------------------------------------------------------
+
+.calendar-card {
+  padding: 0.75rem;
+}
+
+.calendar {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.calendar-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.calendar-head {
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.25rem 0;
+}
+
+.calendar-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+  min-height: 3.25rem;
+  padding: 0.3rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+
+  &:hover {
+    border-color: var(--apana-section-color);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--apana-section-color);
+    outline-offset: 1px;
+  }
+  &.holiday {
+    background: var(--bs-danger-bg-subtle);
+  }
+  &.outside {
+    background: transparent;
+    border-style: dashed;
+    .day-number {
+      opacity: 0.55;
+    }
+  }
+  &.today .day-number {
+    background: var(--apana-section-color);
+    color: #fff !important;
+  }
+  &.selected {
+    border: 2px solid var(--apana-section-color);
+    padding: calc(0.3rem - 1px);
+  }
+}
+
+.day-number {
+  display: inline-grid;
+  place-items: center;
+  align-self: flex-start;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.holiday-name {
+  display: none;
+  font-size: 0.7rem;
+  line-height: 1.15;
+  color: var(--bs-danger);
+  font-weight: 600;
+}
+
+.chips {
+  display: none;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.35rem;
+  background: var(--bs-tertiary-bg);
+  min-width: 0;
+
+  .chip-label {
+    color: var(--bs-body-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &.more {
+    color: var(--bs-body-color);
+  }
+}
+
+.dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+// Desde tablet hay espacio para nombres de feriados y pagos.
+@media (min-width: 768px) {
+  .calendar-card {
+    padding: 1rem;
+  }
+  .calendar-cell {
+    min-height: 6rem;
+  }
+  .holiday-name,
+  .chips {
+    display: flex;
+  }
+  .holiday-name {
+    display: block;
+  }
+  .dots {
+    display: none;
+  }
+}
+
+// --- Lista de pagos ------------------------------------------------------------
+
+.payment-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.payment-date {
+  width: 3.5rem;
+  text-align: left;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.amount {
+  min-width: 6rem;
+  text-align: right;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}

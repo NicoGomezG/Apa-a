@@ -13,6 +13,13 @@ export function createPrismaAccountRepository(prisma: PrismaClient): AccountRepo
   return {
     async deleteAllData(userId) {
       await prisma.$transaction([
+        // Finanzas: movimientos, cuotas y estados de cuenta caen con su cuenta
+        // (ON DELETE CASCADE), pero se borran explícitamente por userId igual.
+        prisma.subscription.deleteMany({ where: { userId } }),
+        prisma.transaction.deleteMany({ where: { userId } }),
+        prisma.installmentPlan.deleteMany({ where: { userId } }),
+        prisma.cardStatement.deleteMany({ where: { userId } }),
+        prisma.financialAccount.deleteMany({ where: { userId } }),
         // user_preferences cae por ON DELETE CASCADE.
         prisma.profile.deleteMany({ where: { id: userId } }),
       ]);

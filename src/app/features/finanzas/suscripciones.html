@@ -1,0 +1,134 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    @if (monthlyTotals().length > 0) {
+      <span class="text-secondary">Al mes:</span>
+      @for (total of monthlyTotals(); track total.currency; let last = $last) {
+        <strong class="fs-5">{{ total.amount | money: total.currency }}</strong>@if (!last) { <span> + </span> }
+      }
+    } @else {
+      <span class="text-secondary">Apps y servicios que pagas cada mes o cada año.</span>
+    }
+  </div>
+  <button type="button" class="btn btn-sm btn-primary" (click)="openNew()">
+    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Nueva suscripción
+  </button>
+</div>
+
+@if (status(); as s) {
+  <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
+    {{ s.message }}
+  </div>
+}
+
+@if (formOpen()) {
+  <section class="apana-card mb-3" aria-labelledby="form-suscripcion">
+    <h2 id="form-suscripcion" class="apana-section-title">
+      <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ editingId() ? 'Editar suscripción' : 'Nueva suscripción' }}
+    </h2>
+    <form class="row g-3" (ngSubmit)="save()">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="subName">Nombre</label>
+        <input id="subName" name="name" class="form-control" maxlength="80" placeholder="Ej: Spotify" [(ngModel)]="draft.name" required />
+      </div>
+      <div class="col-7 col-md-3">
+        <label class="form-label" for="subAmount">Monto</label>
+        <input id="subAmount" name="amount" class="form-control" inputmode="decimal" placeholder="6.990" [(ngModel)]="draft.amount" required />
+      </div>
+      <div class="col-5 col-md-3">
+        <label class="form-label" for="subCurrency">Moneda</label>
+        <select id="subCurrency" name="currency" class="form-select" [(ngModel)]="draft.currency">
+          @for (currency of currencies; track currency) {
+            <option [value]="currency">{{ currency }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label" for="subFrequency">Frecuencia</label>
+        <select id="subFrequency" name="frequency" class="form-select" [(ngModel)]="draft.frequency">
+          <option value="monthly">Mensual</option>
+          <option value="yearly">Anual</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label" for="subStart">Fecha de cobro</label>
+        <input id="subStart" name="startDate" type="date" class="form-control" [(ngModel)]="draft.startDate" required />
+        <div class="form-text">Cualquier cobro: de ahí sale el día de cada mes.</div>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="subAccount">Se paga con</label>
+        <select id="subAccount" name="accountId" class="form-select" [(ngModel)]="draft.accountId">
+          <option value="">Sin indicar</option>
+          @for (account of accounts(); track account.id) {
+            <option [value]="account.id">{{ account.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="subCategory">Categoría</label>
+        <select id="subCategory" name="category" class="form-select" [(ngModel)]="draft.category">
+          <option value="">Sin categoría</option>
+          @for (category of categories; track category) {
+            <option [value]="category">{{ categoryLabel(category) }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12">
+        <div class="form-check form-switch">
+          <input id="subActive" name="active" class="form-check-input" type="checkbox" role="switch" [(ngModel)]="draft.active" />
+          <label class="form-check-label" for="subActive">Activa</label>
+        </div>
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="btn btn-outline-primary" type="button" (click)="formOpen.set(false)">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+@if (loading()) {
+  <p class="text-secondary" role="status">Cargando…</p>
+} @else if (rows().length === 0) {
+  <section class="apana-card">
+    <app-empty-state
+      icon="fa-face-smile"
+      title="Sin suscripciones"
+      description="Agrega Netflix, Spotify, iCloud o lo que pagues seguido: se suman a tu gasto base de cada mes."
+    />
+  </section>
+} @else {
+  <section class="apana-card" aria-label="Suscripciones">
+    <ul class="list-unstyled mb-0">
+      @for (sub of rows(); track sub.id) {
+        <li class="d-flex flex-wrap align-items-center gap-3 py-3 border-bottom" [class.opacity-75]="!sub.active">
+          <div class="flex-grow-1 min-w-0">
+            <div class="fw-semibold text-truncate">
+              {{ sub.name }}
+              @if (!sub.active) {
+                <span class="badge text-bg-light border ms-1">Pausada</span>
+              }
+            </div>
+            <div class="small text-secondary">
+              {{ sub.frequency === 'yearly' ? 'Anual' : 'Mensual' }}
+              @if (sub.active) { · próximo cobro {{ formatDay(sub.next, true) }} }
+              @if (accountName()(sub.accountId); as account) { · {{ account }} }
+            </div>
+          </div>
+          <div class="fw-semibold text-nowrap">{{ sub.amount | money: sub.currency }}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="openEdit(sub)">Editar</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="toggle(sub)">{{ sub.active ? 'Pausar' : 'Activar' }}</button>
+            @if (confirmDeleteId() === sub.id) {
+              <button type="button" class="btn btn-sm btn-danger" (click)="remove(sub)">Sí, eliminar</button>
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDeleteId.set(null)">No</button>
+            } @else {
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="confirmDeleteId.set(sub.id)" aria-label="Eliminar suscripción">
+                <i class="fa-solid fa-trash" aria-hidden="true"></i>
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+}

@@ -5,7 +5,19 @@ export type AuditAction =
   | 'profile.updated'
   | 'preferences.updated'
   | 'account.exported'
-  | 'account.deleted';
+  | 'account.deleted'
+  | 'finance.account.created'
+  | 'finance.account.updated'
+  | 'finance.account.deleted'
+  | 'finance.transaction.created'
+  | 'finance.transaction.updated'
+  | 'finance.transaction.deleted'
+  | 'finance.installment.updated'
+  | 'finance.installment.deleted'
+  | 'finance.subscription.created'
+  | 'finance.subscription.updated'
+  | 'finance.subscription.deleted'
+  | 'finance.import.completed';
 
 export interface AuditEntry {
   userId: string | null;

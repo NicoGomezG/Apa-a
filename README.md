@@ -90,4 +90,17 @@ Site URL y Redirect URLs.
 
 **Fase 1 (base)**: autenticación, navegación, sistema de diseño, dashboard con estados vacíos,
 perfil y preferencias, exportación y eliminación de cuenta, bitácora de auditoría.
-Los módulos (Finanzas, Agenda, Personas, Compras, Vehículos, Salud) llegan en las fases siguientes.
+
+**Fase 2 (Finanzas)**: cuentas, movimientos, compras en cuotas, suscripciones, estados de cuenta
+de tarjeta, gasto del mes calendario y del ciclo de cada tarjeta, gasto base proyectado y
+próximos pagos. Importación de cartolas que se leen **en el navegador** (el archivo no se sube):
+Banco de Chile (Excel), CMR Falabella y Santander (PDF), con verificación contra el total y la
+tabla de vencimientos del banco. Lectores en `src/app/features/finanzas/import/`.
+
+**Agenda**: calendario mensual (lunes a domingo) con domingos y feriados legales de Chile en rojo
+(calculados por ley en `src/app/core/calendar/holidays-cl.ts`, sin regionales ni de elecciones) y los
+pagos del mes desde Finanzas (`GET /api/finance/calendar`): cobros de suscripciones y vencimientos
+de tarjetas con sus cuotas. Cada pago se cruza con los movimientos para mostrarlo como pagado, por
+pagar o sin confirmar.
+
+Los demás módulos (Personas, Compras, Vehículos, Salud) llegan en las fases siguientes.

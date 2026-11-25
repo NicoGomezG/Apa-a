@@ -6,6 +6,7 @@ import { createSupabaseTokenVerifier } from './lib/auth/token-verifier.js';
 import { createPrisma } from './lib/prisma.js';
 import { createPrismaAccountRepository } from './modules/account/account.repository.js';
 import { createPrismaAuditRepository } from './modules/audit/audit.repository.js';
+import { createPrismaFinanceRepository } from './modules/finance/finance.repository.js';
 import { createPrismaProfileRepository } from './modules/profile/profile.repository.js';
 
 /** Arma la app con sus dependencias reales (Supabase + Postgres). */
@@ -19,6 +20,7 @@ export async function createApp(): Promise<FastifyInstance> {
     profiles: createPrismaProfileRepository(prisma),
     audit: createPrismaAuditRepository(prisma),
     account: createPrismaAccountRepository(prisma),
+    finance: createPrismaFinanceRepository(prisma),
   });
   app.addHook('onClose', async () => prisma.$disconnect());
   return app;

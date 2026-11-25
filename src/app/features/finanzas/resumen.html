@@ -1,0 +1,204 @@
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <app-month-picker [(month)]="month" />
+  @if (summary(); as s) {
+    <span class="text-secondary small">Hoy: {{ formatDay(s.today, true) }}</span>
+  }
+</div>
+
+@if (error(); as message) {
+  <div class="alert alert-danger" role="alert">{{ message }}</div>
+}
+
+@if (loading() && !summary()) {
+  <p class="text-secondary" role="status">Cargando…</p>
+} @else if (isEmpty()) {
+  <section class="apana-card">
+    <app-empty-state
+      icon="fa-face-smile"
+      title="Aún no registras tus finanzas"
+      description="Sube una cartola o un estado de cuenta, o crea tus cuentas y suscripciones a mano."
+    >
+      <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+        <a class="btn btn-primary" routerLink="../importar">
+          <i class="fa-solid fa-file-import me-2" aria-hidden="true"></i>Importar cartola
+        </a>
+        <a class="btn btn-outline-primary" routerLink="../cuentas">Crear una cuenta</a>
+        <a class="btn btn-outline-primary" routerLink="../suscripciones">Agregar suscripción</a>
+      </div>
+    </app-empty-state>
+  </section>
+} @else if (summary(); as s) {
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-5">
+      <section class="apana-card h-100" aria-labelledby="gastado">
+        <h2 id="gastado" class="apana-section-title">
+          <i class="fa-solid fa-receipt" aria-hidden="true"></i>Gastado en {{ formatMonth(s.month) }}
+        </h2>
+        <p class="big-number mb-1">{{ s.spent.total | money: s.currency }}</p>
+        <ul class="list-unstyled small mb-0 d-grid gap-1">
+          @if (isPositive(s.spent.installments)) {
+            <li>Incluye {{ s.spent.installments | money: s.currency }} en cuotas que se pagan este mes.</li>
+          }
+          @if (isPositive(s.spent.income)) {
+            <li class="text-success">
+              <i class="fa-solid fa-arrow-trend-up me-1" aria-hidden="true"></i>Ingresos: {{ s.spent.income | money: s.currency }}
+            </li>
+          }
+          <li class="text-secondary">No cuenta traspasos entre tus cuentas ni pagos de tarjeta.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <section class="apana-card h-100" aria-labelledby="base">
+        <h2 id="base" class="apana-section-title">
+          <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>Gasto base por mes
+        </h2>
+        <p class="text-secondary small">Lo que ya está comprometido: suscripciones y cuotas.</p>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th scope="col">Mes</th>
+                <th scope="col" class="text-end">Suscripciones</th>
+                <th scope="col" class="text-end">Cuotas</th>
+                <th scope="col" class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of s.base; track row.month) {
+                <tr>
+                  <td class="text-capitalize">{{ formatMonth(row.month, true) }}</td>
+                  <td class="text-end">{{ row.subscriptions | money: s.currency }}</td>
+                  <td class="text-end">{{ row.installments | money: s.currency }}</td>
+                  <td class="text-end fw-semibold">{{ row.total | money: s.currency }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @for (foreign of s.foreignSubscriptions; track foreign.currency) {
+          <p class="small text-secondary mt-2 mb-0">
+            Además, {{ foreign.amount | money: foreign.currency }} en suscripciones en {{ foreign.currency }} este mes.
+          </p>
+        }
+      </section>
+    </div>
+  </div>
+
+  <div class="apana-grid mb-3">
+    <section class="apana-card" aria-labelledby="categorias">
+      <h2 id="categorias" class="apana-section-title">
+        <i class="fa-solid fa-chart-pie" aria-hidden="true"></i>Por categoría
+      </h2>
+      @if (categories().length === 0) {
+        <app-empty-state icon="fa-face-smile" title="Sin gastos este mes" />
+      } @else {
+        <ul class="list-unstyled d-grid gap-3 mb-0">
+          @for (item of categories(); track item.category) {
+            <li class="d-flex align-items-center gap-2">
+              <span class="category-icon"><i class="fa-solid {{ categoryIcon(item.category) }}" aria-hidden="true"></i></span>
+              <div class="flex-grow-1 min-w-0">
+                <div class="d-flex justify-content-between gap-2 small">
+                  <span class="text-truncate">{{ categoryLabel(item.category) }}</span>
+                  <span class="fw-semibold">{{ item.amount | money: s.currency }}</span>
+                </div>
+                <div class="bar mt-1" role="presentation"><span [style.width.%]="item.percent"></span></div>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="apana-card" aria-labelledby="proximos">
+      <h2 id="proximos" class="apana-section-title">
+        <i class="fa-solid fa-bell" aria-hidden="true"></i>Próximos pagos (30 días)
+      </h2>
+      @if (s.upcoming.length === 0) {
+        <app-empty-state icon="fa-face-smile" title="Nada por pagar" description="No hay vencimientos en los próximos 30 días." />
+      } @else {
+        <ul class="list-unstyled d-grid gap-2 mb-0">
+          @for (item of s.upcoming; track $index) {
+            <li class="d-flex justify-content-between align-items-start gap-2">
+              <div class="min-w-0">
+                <div class="fw-semibold text-truncate">
+                  <i class="fa-solid {{ item.type === 'card' ? 'fa-credit-card' : 'fa-repeat' }} me-1" aria-hidden="true"></i>
+                  {{ item.label }}
+                </div>
+                <div class="small text-secondary">
+                  {{ formatDay(item.date) }}@if (item.estimated) { · estimado, aún sin facturar }
+                </div>
+              </div>
+              <span class="fw-semibold text-nowrap">{{ item.amount | money: item.currency }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="apana-card" aria-labelledby="cuotas-mes">
+      <h2 id="cuotas-mes" class="apana-section-title">
+        <i class="fa-solid fa-layer-group" aria-hidden="true"></i>Cuotas de {{ formatMonth(s.month) }}
+      </h2>
+      @if (s.installments.length === 0) {
+        <app-empty-state icon="fa-face-smile" title="Sin cuotas este mes" />
+      } @else {
+        <ul class="list-unstyled d-grid gap-2 mb-0">
+          @for (item of s.installments; track item.planId) {
+            <li class="d-flex justify-content-between gap-2">
+              <div class="min-w-0">
+                <div class="text-truncate">{{ item.description }}</div>
+                <div class="small text-secondary">Cuota {{ item.number }} de {{ item.count }} · {{ accountName()(item.accountId) }}</div>
+              </div>
+              <span class="fw-semibold text-nowrap">{{ item.amount | money: item.currency }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+
+  @if (s.cards.length > 0) {
+    <h2 class="h5 mb-3">Tarjetas de crédito</h2>
+    <div class="apana-grid">
+      @for (card of s.cards; track card.accountId) {
+        <section class="apana-card" [attr.aria-label]="card.name">
+          <h3 class="apana-section-title mb-2">
+            <i class="fa-solid fa-credit-card" aria-hidden="true"></i>{{ card.name }}
+            @if (card.last4) {
+              <span class="text-secondary fw-normal small">·{{ card.last4 }}</span>
+            }
+          </h3>
+
+          @if (card.cycle; as cycle) {
+            <p class="small text-secondary mb-1">
+              Ciclo actual: {{ formatDay(cycle.start) }} al {{ formatDay(cycle.end) }} · se paga el {{ formatDay(cycle.dueDate, true) }}
+            </p>
+            <p class="mb-1"><span class="fs-4 fw-bold">{{ cycle.total | money: card.currency }}</span> en este ciclo</p>
+            <p class="small mb-3">
+              {{ cycle.purchases | money: card.currency }} en compras + {{ cycle.installments | money: card.currency }} en cuotas
+            </p>
+          } @else {
+            <p class="small text-secondary">
+              Para ver el ciclo de facturación, indica el día de cierre y de pago en
+              <a routerLink="../cuentas">Cuentas</a> o importa un estado de cuenta.
+            </p>
+          }
+
+          @if (card.lastStatement; as statement) {
+            <div class="border-top pt-2 small">
+              <div class="fw-semibold mb-1">Último estado de cuenta ({{ formatDay(statement.periodEnd) }})</div>
+              <div class="d-flex justify-content-between"><span>Total facturado</span><span class="fw-semibold">{{ statement.totalBilled | money: statement.currency }}</span></div>
+              <div class="d-flex justify-content-between"><span>Mínimo</span><span>{{ statement.minimumPayment | money: statement.currency }}</span></div>
+              <div class="d-flex justify-content-between"><span>Pagar hasta</span><span>{{ formatDay(statement.dueDate, true) }}</span></div>
+            </div>
+          }
+          @if (card.creditLimit) {
+            <p class="small text-secondary mt-2 mb-0">Cupo total: {{ card.creditLimit | money: card.currency }}</p>
+          }
+        </section>
+      }
+    </div>
+  }
+}

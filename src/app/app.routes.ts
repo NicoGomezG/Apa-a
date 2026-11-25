@@ -53,8 +53,43 @@ export const routes: Routes = [
         title: 'Inicio · Apaña',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
       },
-      upcoming('finanzas', 'Finanzas'),
-      upcoming('agenda', 'Agenda'),
+      {
+        path: 'finanzas',
+        loadComponent: () => import('./features/finanzas/finanzas').then((m) => m.Finanzas),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'resumen' },
+          {
+            path: 'resumen',
+            title: 'Finanzas · Apaña',
+            loadComponent: () => import('./features/finanzas/resumen').then((m) => m.FinanzasResumen),
+          },
+          {
+            path: 'movimientos',
+            title: 'Movimientos · Finanzas · Apaña',
+            loadComponent: () => import('./features/finanzas/movimientos').then((m) => m.FinanzasMovimientos),
+          },
+          {
+            path: 'cuentas',
+            title: 'Cuentas · Finanzas · Apaña',
+            loadComponent: () => import('./features/finanzas/cuentas').then((m) => m.FinanzasCuentas),
+          },
+          {
+            path: 'suscripciones',
+            title: 'Suscripciones · Finanzas · Apaña',
+            loadComponent: () => import('./features/finanzas/suscripciones').then((m) => m.FinanzasSuscripciones),
+          },
+          {
+            path: 'importar',
+            title: 'Importar · Finanzas · Apaña',
+            loadComponent: () => import('./features/finanzas/importar').then((m) => m.FinanzasImportar),
+          },
+        ],
+      },
+      {
+        path: 'agenda',
+        title: 'Agenda · Apaña',
+        loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
+      },
       upcoming('personas', 'Personas'),
       upcoming('compras', 'Compras'),
       upcoming('vehiculos', 'Vehículos'),

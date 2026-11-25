@@ -32,22 +32,6 @@ export const SETTINGS_ITEM: NavItem = { key: 'ajustes', path: '/ajustes', label:
 
 /** Módulos que todavía no están construidos. La pantalla lo dice tal cual. */
 export const UPCOMING_MODULES: Record<string, UpcomingModule> = {
-  finanzas: {
-    key: 'finanzas',
-    title: 'Finanzas',
-    icon: 'fa-wallet',
-    phase: 2,
-    summary: 'Tus ingresos, gastos, presupuestos y suscripciones, con aviso antes de cada renovación.',
-    features: ['Registro de gastos e ingresos', 'Cuentas y medios de pago', 'Presupuestos mensuales', 'Suscripciones y pagos recurrentes', 'Proyección de gastos'],
-  },
-  agenda: {
-    key: 'agenda',
-    title: 'Agenda',
-    icon: 'fa-calendar-days',
-    phase: 2,
-    summary: 'Tus recordatorios, citas y vencimientos de todos los módulos, en un solo calendario.',
-    features: ['Recordatorios con anticipación configurable', 'Recurrencias', 'Pendientes, completados y descartados'],
-  },
   personas: {
     key: 'personas',
     title: 'Personas',

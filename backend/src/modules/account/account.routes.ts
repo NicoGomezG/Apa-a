@@ -6,6 +6,8 @@ import { currentUser } from '../../plugins/auth.js';
 import type { AuditRepository } from '../audit/audit.repository.js';
 import { ensureProfile } from '../profile/profile.routes.js';
 import type { ProfileRepository } from '../profile/profile.repository.js';
+import type { FinanceRepository } from '../finance/finance.repository.js';
+import { toJson } from '../finance/finance.routes.js';
 import type { AccountRepository } from './account.repository.js';
 
 export const DELETE_CONFIRMATION = 'ELIMINAR MI CUENTA';
@@ -17,6 +19,7 @@ export interface AccountRoutesDeps {
   audit: AuditRepository;
   account: AccountRepository;
   authAdmin: AuthAdmin;
+  finance: FinanceRepository;
 }
 
 export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (app, deps) => {
@@ -31,6 +34,7 @@ export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (ap
       const user = currentUser(request);
       const profile = await ensureProfile(deps, user);
       const activity = await deps.audit.listForUser(user.id, 1000);
+      const finance = await deps.finance.exportAll(user.id);
       await deps.audit.record({ userId: user.id, action: 'account.exported', entityType: 'profile', entityId: user.id });
 
       reply.header('Content-Disposition', 'attachment; filename="apana-mis-datos.json"');
@@ -39,6 +43,7 @@ export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (ap
         exportedAt: new Date().toISOString(),
         account: { email: user.email },
         profile,
+        finance: toJson(finance),
         activity,
       };
     },

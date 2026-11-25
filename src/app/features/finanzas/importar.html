@@ -1,0 +1,272 @@
+@if (error(); as message) {
+  <div class="alert alert-danger" role="alert">{{ message }}</div>
+}
+
+@switch (step()) {
+  @case ('select') {
+    <section class="apana-card" aria-labelledby="importar-titulo">
+      <h2 id="importar-titulo" class="apana-section-title">
+        <i class="fa-solid fa-file-import" aria-hidden="true"></i>Importar cartola o estado de cuenta
+      </h2>
+      <label
+        class="drop d-block"
+        [class.over]="dragging()"
+        for="importFile"
+        (dragover)="onDrag($event, true)"
+        (dragleave)="onDrag($event, false)"
+        (drop)="onDrop($event)"
+      >
+        <i class="fa-solid fa-cloud-arrow-up mb-2" aria-hidden="true"></i>
+        <span class="d-block fw-semibold">Arrastra el archivo aquí o toca para elegirlo</span>
+        <span class="d-block small text-secondary mt-1">PDF o Excel, hasta 10 MB</span>
+        <input id="importFile" type="file" class="visually-hidden" accept=".pdf,.xls,.xlsx,application/pdf" (change)="onFileInput($event)" />
+      </label>
+      <div class="row g-3 mt-2 small">
+        <div class="col-12 col-md-6">
+          <p class="fw-semibold mb-1">Por ahora leemos:</p>
+          <ul class="mb-0">
+            <li>Cartola de cuenta corriente de <strong>Banco de Chile</strong> (Excel)</li>
+            <li>Estado de cuenta de <strong>CMR Falabella</strong> (PDF)</li>
+            <li>Estado de cuenta de tarjeta <strong>Santander</strong> (PDF)</li>
+          </ul>
+        </div>
+        <div class="col-12 col-md-6">
+          <p class="fw-semibold mb-1"><i class="fa-solid fa-shield-halved me-1" aria-hidden="true"></i>Tu archivo no sale de este dispositivo</p>
+          <p class="mb-0 text-secondary">
+            Lo leemos en tu navegador y solo guardamos los movimientos que confirmes. El PDF o Excel no se sube ni se guarda.
+            Si subes la misma cartola dos veces, no se duplica nada.
+          </p>
+        </div>
+      </div>
+    </section>
+  }
+
+  @case ('reading') {
+    <section class="apana-card text-center py-5" role="status">
+      <i class="fa-solid fa-spinner fa-spin fs-3 mb-2" aria-hidden="true"></i>
+      <p class="mb-0">Leyendo el archivo…</p>
+    </section>
+  }
+
+  @case ('password') {
+    <section class="apana-card" aria-labelledby="pdf-clave">
+      <h2 id="pdf-clave" class="apana-section-title"><i class="fa-solid fa-lock" aria-hidden="true"></i>El PDF tiene contraseña</h2>
+      <p class="text-secondary small">Suele ser tu RUT sin puntos ni dígito verificador. La usamos solo para abrirlo aquí; no se guarda.</p>
+      <form class="d-flex flex-wrap gap-2" (ngSubmit)="submitPassword()">
+        <label class="visually-hidden" for="pdfPassword">Contraseña del PDF</label>
+        <input id="pdfPassword" name="password" type="password" class="form-control w-auto flex-grow-1" autocomplete="off" [(ngModel)]="password" />
+        <button class="btn btn-primary" type="submit" [disabled]="!password">Abrir</button>
+        <button class="btn btn-outline-primary" type="button" (click)="reset()">Cancelar</button>
+      </form>
+    </section>
+  }
+
+  @case ('done') {
+    @if (result(); as r) {
+      <section class="apana-card" aria-labelledby="import-listo">
+        <h2 id="import-listo" class="apana-section-title">
+          <i class="fa-solid fa-circle-check text-success" aria-hidden="true"></i>Importación lista
+        </h2>
+        <ul class="mb-3">
+          <li>{{ r.transactionsCreated }} movimientos nuevos en <strong>{{ importedAccountName() }}</strong>
+            @if (r.transactionsSkipped > 0) { ({{ r.transactionsSkipped }} ya estaban y no se duplicaron) }
+          </li>
+          @if (r.plansCreated + r.plansSkipped > 0) {
+            <li>{{ r.plansCreated }} compras en cuotas nuevas
+              @if (r.plansSkipped > 0) { ({{ r.plansSkipped }} ya estaban) }
+            </li>
+          }
+          @if (r.statement) {
+            <li>Estado de cuenta {{ r.statement === 'created' ? 'guardado' : 'actualizado' }}, con su fecha de pago.</li>
+          }
+        </ul>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-primary" routerLink="../resumen">Ver resumen</a>
+          <a class="btn btn-outline-primary" routerLink="../movimientos">Ver movimientos</a>
+          <button class="btn btn-outline-primary" type="button" (click)="reset()">Importar otro archivo</button>
+        </div>
+      </section>
+    }
+  }
+
+  @default {
+    @if (parsed(); as p) {
+      <section class="apana-card mb-3" aria-labelledby="vista-previa">
+        <h2 id="vista-previa" class="apana-section-title">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>{{ sourceLabels[p.source] }}
+          @if (p.last4) { <span class="fw-normal text-secondary small">·{{ p.last4 }}</span> }
+        </h2>
+
+        @if (p.statement; as st) {
+          <div class="row g-2 small mb-3">
+            <div class="col-6 col-md-3"><div class="text-secondary">Período</div>{{ formatDay(st.periodStart) }} al {{ formatDay(st.periodEnd, true) }}</div>
+            <div class="col-6 col-md-3"><div class="text-secondary">Pagar hasta</div><strong>{{ formatDay(st.dueDate, true) }}</strong></div>
+            <div class="col-6 col-md-3"><div class="text-secondary">Total facturado</div><strong>{{ st.totalBilled | money }}</strong></div>
+            <div class="col-6 col-md-3"><div class="text-secondary">Mínimo</div>{{ st.minimumPayment | money }}</div>
+          </div>
+
+          <div class="border rounded-3 p-3 small mb-3">
+            <p class="fw-semibold mb-2"><i class="fa-solid fa-scale-balanced me-1" aria-hidden="true"></i>Verificación con el banco</p>
+            @if (totalCheck(); as total) {
+              <p class="mb-1">
+                @if (total.matches) {
+                  <i class="fa-solid fa-circle-check text-success me-1" aria-hidden="true"></i>Los cargos leídos suman exactamente el total facturado ({{ total.billed | money }}).
+                } @else {
+                  <i class="fa-solid fa-triangle-exclamation text-warning me-1" aria-hidden="true"></i>
+                  Los cargos leídos suman {{ total.charged | money }} y el total facturado es {{ total.billed | money }}.
+                  Puede deberse a saldo anterior impago o a cargos que no reconocimos; revisa antes de importar.
+                }
+              </p>
+            }
+            @if (upcomingCheck().length > 0) {
+              <p class="mb-1">
+                @if (upcomingOk()) {
+                  <i class="fa-solid fa-circle-check text-success me-1" aria-hidden="true"></i>Las cuotas de los próximos meses cuadran con la tabla del banco:
+                } @else {
+                  <i class="fa-solid fa-triangle-exclamation text-warning me-1" aria-hidden="true"></i>Las cuotas proyectadas no cuadran del todo con la tabla del banco:
+                }
+              </p>
+              <ul class="mb-0">
+                @for (check of upcomingCheck(); track check.month) {
+                  <li class="text-capitalize-first">
+                    {{ formatMonth(check.month) }}: banco {{ check.bank | money }}
+                    @if (!check.matches) { · Apaña {{ check.projected | money }} }
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
+
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-md-6">
+            <label class="form-label" for="importAccount">Guardar en la cuenta</label>
+            <select id="importAccount" name="account" class="form-select" [(ngModel)]="accountChoice">
+              @for (account of compatibleAccounts(); track account.id) {
+                <option [value]="account.id">{{ account.name }}@if (account.last4) { ·{{ account.last4 }} }</option>
+              }
+              <option [value]="newAccount">Crear cuenta nueva</option>
+            </select>
+          </div>
+          @if (accountChoice === newAccount) {
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="newAccountName">Nombre de la cuenta nueva</label>
+              <input id="newAccountName" name="newAccountName" class="form-control" maxlength="80" [(ngModel)]="newAccountName" />
+            </div>
+          }
+        </div>
+      </section>
+
+      @if (installments.length > 0) {
+        <section class="apana-card mb-3" aria-labelledby="preview-cuotas">
+          <h2 id="preview-cuotas" class="apana-section-title">
+            <i class="fa-solid fa-layer-group" aria-hidden="true"></i>Compras en cuotas ({{ installments.length }})
+          </h2>
+          <p class="small text-secondary">Cada cuota se asigna al mes en que se paga.</p>
+          <div class="table-responsive">
+            <table class="table table-sm preview-table mb-0">
+              <thead>
+                <tr>
+                  <th scope="col"><span class="visually-hidden">Incluir</span></th>
+                  <th scope="col">Compra</th>
+                  <th scope="col" class="text-end">Cuota</th>
+                  <th scope="col">Pendientes</th>
+                  <th scope="col">Categoría</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of installments; track $index) {
+                  <tr [class.opacity-50]="!row.include">
+                    <td><input class="form-check-input" type="checkbox" [(ngModel)]="row.include" [attr.aria-label]="'Incluir ' + row.description" /></td>
+                    <td class="desc">
+                      <div class="fw-semibold">{{ row.description }}</div>
+                      <div class="small text-secondary">{{ formatDay(row.purchaseDate, true) }} · total {{ row.totalAmount | money }}</div>
+                    </td>
+                    <td class="text-end">
+                      <div>{{ row.currentNumber }}/{{ row.installmentCount }}</div>
+                      <div class="small">{{ row.installmentAmount | money }}</div>
+                    </td>
+                    <td class="small">
+                      @for (due of row.schedule; track due.number) {
+                        <div>{{ formatMonth(due.month, true) }}: {{ due.amount | money }}</div>
+                      }
+                    </td>
+                    <td>
+                      <select class="form-select form-select-sm" [(ngModel)]="row.category" [attr.aria-label]="'Categoría de ' + row.description">
+                        <option value="">Sin categoría</option>
+                        @for (category of categories; track category) {
+                          <option [value]="category">{{ categoryLabel(category) }}</option>
+                        }
+                      </select>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      <section class="apana-card mb-3" aria-labelledby="preview-movimientos">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <h2 id="preview-movimientos" class="apana-section-title mb-0">
+            <i class="fa-solid fa-list" aria-hidden="true"></i>Movimientos ({{ movements.length }})
+          </h2>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="setAll(true)">Marcar todos</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="setAll(false)">Desmarcar</button>
+          </div>
+        </div>
+        <p class="small text-secondary">
+          Revisa el tipo: los traspasos entre tus cuentas y los pagos de tarjeta no cuentan como gasto.
+        </p>
+        <div class="table-responsive">
+          <table class="table table-sm preview-table mb-0">
+            <thead>
+              <tr>
+                <th scope="col"><span class="visually-hidden">Incluir</span></th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Descripción</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Categoría</th>
+                <th scope="col" class="text-end">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of movements; track $index) {
+                <tr [class.opacity-50]="!row.include">
+                  <td><input class="form-check-input" type="checkbox" [(ngModel)]="row.include" [attr.aria-label]="'Incluir ' + row.description" /></td>
+                  <td>{{ formatDay(row.date) }}</td>
+                  <td class="desc">{{ row.description }}</td>
+                  <td>
+                    <select class="form-select form-select-sm" [(ngModel)]="row.kind" [attr.aria-label]="'Tipo de ' + row.description">
+                      @for (kind of kinds; track kind) {
+                        <option [value]="kind">{{ kindLabels[kind] }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <select class="form-select form-select-sm" [(ngModel)]="row.category" [attr.aria-label]="'Categoría de ' + row.description">
+                      <option value="">Sin categoría</option>
+                      @for (category of categories; track category) {
+                        <option [value]="category">{{ categoryLabel(category) }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td class="text-end fw-semibold">{{ row.amount | money }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button class="btn btn-primary" type="button" (click)="confirm()" [disabled]="step() === 'saving'">
+          {{ step() === 'saving' ? 'Importando…' : 'Importar ' + includedCount().movements + ' movimientos' + (includedCount().installments ? ' y ' + includedCount().installments + ' compras en cuotas' : '') }}
+        </button>
+        <button class="btn btn-outline-primary" type="button" (click)="reset()" [disabled]="step() === 'saving'">Cancelar</button>
+      </div>
+    }
+  }
+}

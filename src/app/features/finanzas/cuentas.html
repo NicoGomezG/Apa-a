@@ -1,0 +1,132 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <p class="text-secondary mb-0">Tus cuentas bancarias, tarjetas y efectivo.</p>
+  <button type="button" class="btn btn-sm btn-primary" (click)="openNew()">
+    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Nueva cuenta
+  </button>
+</div>
+
+@if (status(); as s) {
+  <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
+    {{ s.message }}
+  </div>
+}
+
+@if (formOpen()) {
+  <section class="apana-card mb-3" aria-labelledby="form-cuenta">
+    <h2 id="form-cuenta" class="apana-section-title">
+      <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ editingId() ? 'Editar cuenta' : 'Nueva cuenta' }}
+    </h2>
+    <form class="row g-3" (ngSubmit)="save()">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="accName">Nombre</label>
+        <input id="accName" name="name" class="form-control" maxlength="80" placeholder="Ej: CMR Falabella" [(ngModel)]="draft.name" required />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="accKind">Tipo</label>
+        <select id="accKind" name="kind" class="form-select" [(ngModel)]="draft.kind">
+          @for (kind of kinds; track kind) {
+            <option [value]="kind">{{ kindLabels[kind] }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label" for="accInstitution">Banco o emisor</label>
+        <input id="accInstitution" name="institution" class="form-control" maxlength="60" [(ngModel)]="draft.institution" />
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label" for="accLast4">Últimos 4 dígitos</label>
+        <input id="accLast4" name="last4" class="form-control" inputmode="numeric" maxlength="4" pattern="\d{4}" [(ngModel)]="draft.last4" />
+        <div class="form-text">Nunca el número completo.</div>
+      </div>
+      <div class="col-6 col-md-4">
+        <label class="form-label" for="accCurrency">Moneda</label>
+        <select id="accCurrency" name="currency" class="form-select" [(ngModel)]="draft.currency" [disabled]="editingId() !== null">
+          @for (currency of currencies; track currency) {
+            <option [value]="currency">{{ currency }}</option>
+          }
+        </select>
+      </div>
+      @if (draft.kind === 'credit_card') {
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="accLimit">Cupo total</label>
+          <input id="accLimit" name="creditLimit" class="form-control" inputmode="numeric" placeholder="780.000" [(ngModel)]="draft.creditLimit" />
+        </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label" for="accBilling">Día de cierre</label>
+          <select id="accBilling" name="billingDay" class="form-select" [(ngModel)]="draft.billingDay">
+            <option [ngValue]="null">Sin definir</option>
+            @for (day of days; track day) {
+              <option [ngValue]="day">{{ day }}</option>
+            }
+          </select>
+        </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label" for="accPayment">Día de pago</label>
+          <select id="accPayment" name="paymentDay" class="form-select" [(ngModel)]="draft.paymentDay">
+            <option [ngValue]="null">Sin definir</option>
+            @for (day of days; track day) {
+              <option [ngValue]="day">{{ day }}</option>
+            }
+          </select>
+        </div>
+        <p class="col-12 small text-secondary mb-0">
+          Con el día de cierre y de pago calculamos tu ciclo de facturación. Si importas un estado de cuenta, se completan solos.
+        </p>
+      }
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="btn btn-outline-primary" type="button" (click)="formOpen.set(false)">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+@if (loading()) {
+  <p class="text-secondary" role="status">Cargando…</p>
+} @else if (accounts().length === 0) {
+  <section class="apana-card">
+    <app-empty-state icon="fa-face-smile" title="Aún no tienes cuentas" description="Créalas a mano o se crean solas al importar una cartola.">
+      <a class="btn btn-sm btn-primary mt-3" routerLink="../importar">Importar cartola</a>
+    </app-empty-state>
+  </section>
+} @else {
+  <div class="apana-grid">
+    @for (account of accounts(); track account.id) {
+      <section class="apana-card d-flex flex-column gap-2" [attr.aria-label]="account.name">
+        <div class="d-flex align-items-center gap-3">
+          <span class="account-icon"><i class="fa-solid {{ kindIcons[account.kind] }}" aria-hidden="true"></i></span>
+          <div class="min-w-0">
+            <h2 class="h6 mb-0 text-truncate">{{ account.name }}</h2>
+            <div class="small text-secondary">
+              {{ kindLabels[account.kind] }}@if (account.institution) { · {{ account.institution }} }@if (account.last4) { · ·{{ account.last4 }} }
+            </div>
+          </div>
+        </div>
+        @if (account.kind === 'credit_card') {
+          <ul class="list-unstyled small mb-0">
+            @if (account.creditLimit) {
+              <li>Cupo: {{ account.creditLimit | money: account.currency }}</li>
+            }
+            <li>
+              @if (account.billingDay && account.paymentDay) {
+                Cierra el {{ account.billingDay }} · se paga el {{ account.paymentDay }}
+              } @else {
+                <span class="text-secondary">Falta el día de cierre y de pago</span>
+              }
+            </li>
+          </ul>
+        }
+        <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+          <button type="button" class="btn btn-sm btn-outline-primary" (click)="openEdit(account)">Editar</button>
+          @if (confirmDeleteId() === account.id) {
+            <span class="small w-100">Se borrarán también sus movimientos, cuotas y estados de cuenta.</span>
+            <button type="button" class="btn btn-sm btn-danger" (click)="remove(account)">Sí, eliminar</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDeleteId.set(null)">No</button>
+          } @else {
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="confirmDeleteId.set(account.id)">Eliminar</button>
+          }
+        </div>
+      </section>
+    }
+  </div>
+}

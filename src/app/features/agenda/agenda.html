@@ -1,0 +1,252 @@
+<app-page-header
+  title="Agenda"
+  icon="fa-calendar-days"
+  module="agenda"
+  subtitle="Tus pagos del mes y los feriados, día a día."
+/>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <app-month-picker [month]="month()" (monthChange)="changeMonth($event)" />
+    <button type="button" class="btn btn-sm btn-outline-primary" (click)="goToday()">Hoy</button>
+  </div>
+  @if (nextHoliday(); as holiday) {
+    <p class="small mb-0">
+      <i class="fa-solid fa-umbrella-beach text-danger me-1" aria-hidden="true"></i>
+      Próximo feriado: <strong>{{ holiday.name }}</strong>, {{ formatDay(holiday.date) }}
+    </p>
+  }
+</div>
+
+@if (error(); as message) {
+  <div class="alert alert-warning py-2" role="status">{{ message }}</div>
+}
+
+<div class="row g-3 mb-3">
+  <div class="col-12 col-md-6 col-xl-3">
+    <div class="apana-card h-100 stat">
+      <div class="stat-label">Pagos de {{ monthLabel() }}</div>
+      @if (totals().amounts.length > 0) {
+        @for (total of totals().amounts; track total.currency; let last = $last) {
+          <span class="stat-value">{{ total.amount | money: total.currency }}</span>@if (!last) { <span> + </span> }
+        }
+      } @else {
+        <span class="stat-value">—</span>
+      }
+    </div>
+  </div>
+  <div class="col-4 col-md-2 col-xl-3">
+    <div class="apana-card h-100 stat">
+      <div class="stat-label"><i class="fa-solid fa-circle-check status-paid me-1" aria-hidden="true"></i>Pagados</div>
+      <span class="stat-value">{{ totals().counts.paid }}</span>
+    </div>
+  </div>
+  <div class="col-4 col-md-2 col-xl-3">
+    <div class="apana-card h-100 stat">
+      <div class="stat-label"><i class="fa-solid fa-clock status-pending me-1" aria-hidden="true"></i>Por pagar</div>
+      <span class="stat-value">{{ totals().counts.pending }}</span>
+    </div>
+  </div>
+  <div class="col-4 col-md-2 col-xl-3">
+    <div class="apana-card h-100 stat">
+      <div class="stat-label"><i class="fa-solid fa-circle-question status-unconfirmed me-1" aria-hidden="true"></i>Sin confirmar</div>
+      <span class="stat-value">{{ totals().counts.unconfirmed }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <section class="apana-card calendar-card" aria-label="Calendario de {{ monthLabel() }}" [attr.aria-busy]="loading()">
+      <div class="calendar" role="grid">
+        <div class="calendar-row" role="row">
+          @for (weekday of weekdays; track weekday.short; let last = $last) {
+            <div class="calendar-head" role="columnheader" [class.red]="last" [attr.aria-label]="weekday.long">
+              {{ weekday.short }}
+            </div>
+          }
+        </div>
+        @for (week of weeks(); track week[0]!.date) {
+          <div class="calendar-row" role="row">
+            @for (cell of week; track cell.date) {
+              <button
+                type="button"
+                role="gridcell"
+                class="calendar-cell"
+                [class.outside]="!cell.inMonth"
+                [class.today]="cell.isToday"
+                [class.selected]="cell.date === selected()"
+                [class.holiday]="cell.holiday"
+                [attr.aria-label]="cell.ariaLabel"
+                [attr.aria-selected]="cell.date === selected()"
+                [attr.aria-current]="cell.isToday ? 'date' : null"
+                (click)="select(cell)"
+              >
+                <span class="day-number" [class.red]="cell.red">{{ cell.day }}</span>
+                @if (cell.holiday; as holiday) {
+                  <span class="holiday-name">{{ holiday.name }}</span>
+                }
+                @if (cell.payments.length > 0) {
+                  <span class="chips">
+                    @for (payment of cell.payments.slice(0, 2); track payment.key) {
+                      <span class="chip status-{{ payment.status }}">
+                        <i class="fa-solid {{ statusIcons[payment.status] }}" aria-hidden="true"></i>
+                        <span class="chip-label">{{ payment.label }}</span>
+                      </span>
+                    }
+                    @if (cell.payments.length > 2) {
+                      <span class="chip more">+{{ cell.payments.length - 2 }}</span>
+                    }
+                  </span>
+                  <span class="dots" aria-hidden="true">
+                    @for (payment of cell.payments; track payment.key) {
+                      <span class="dot status-{{ payment.status }}"></span>
+                    }
+                  </span>
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+      <ul class="legend list-unstyled d-flex flex-wrap gap-3 small mt-3 mb-0">
+        <li><span class="red fw-bold">15</span> Domingo o feriado</li>
+        <li><i class="fa-solid fa-circle-check status-paid" aria-hidden="true"></i> Pagado</li>
+        <li><i class="fa-solid fa-clock status-pending" aria-hidden="true"></i> Por pagar</li>
+        <li><i class="fa-solid fa-circle-question status-unconfirmed" aria-hidden="true"></i> Sin confirmar</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <section class="apana-card h-100" aria-live="polite" aria-labelledby="dia-seleccionado">
+      @let day = selectedDay();
+      <h2 id="dia-seleccionado" class="apana-section-title text-capitalize-first">
+        <i class="fa-solid fa-calendar-day" aria-hidden="true"></i>{{ day.label }}
+      </h2>
+      @if (day.holiday; as holiday) {
+        <p class="mb-3">
+          <span class="badge text-bg-danger me-1">Feriado</span>{{ holiday.name }}
+          @if (holiday.irrenunciable) { <span class="small">· irrenunciable</span> }
+        </p>
+      } @else if (day.sunday) {
+        <p class="mb-3"><span class="badge text-bg-danger">Domingo</span></p>
+      }
+
+      @if (day.payments.length === 0) {
+        <p class="mb-0">{{ loading() ? 'Cargando…' : 'Sin pagos este día.' }}</p>
+      } @else {
+        <ul class="list-unstyled d-grid gap-3 mb-0">
+          @for (payment of day.payments; track payment.key) {
+            <li>
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="min-w-0">
+                  <div class="fw-semibold">
+                    <i
+                      class="fa-solid {{ payment.type === 'card' ? 'fa-credit-card' : 'fa-repeat' }} me-1 section-icon"
+                      aria-hidden="true"
+                    ></i>{{ payment.label }}
+                  </div>
+                  <div class="small">
+                    {{ payment.type === 'card' ? 'Pago de tarjeta' : 'Suscripción' }}@if (payment.estimated) { · estimado }
+                  </div>
+                </div>
+                @if (payment.amount !== null) {
+                  <span class="fw-semibold text-nowrap">{{ payment.amount | money: payment.currency }}</span>
+                }
+              </div>
+              <div class="small mt-1 status-{{ payment.status }}">
+                <i class="fa-solid {{ statusIcons[payment.status] }} me-1" aria-hidden="true"></i>{{ statusLabels[payment.status] }}
+                @if (payment.matchedTransaction; as tx) {
+                  <span class="status-detail">· aparece en tus movimientos el {{ formatDay(tx.date) }}</span>
+                } @else if (payment.status === 'unconfirmed') {
+                  <span class="status-detail">· no encontramos el cargo en tus movimientos</span>
+                }
+              </div>
+              @if (payment.installments.length > 0) {
+                <details class="small mt-2">
+                  <summary>Incluye {{ payment.installments.length }} {{ payment.installments.length === 1 ? 'cuota' : 'cuotas' }}</summary>
+                  <ul class="list-unstyled mt-2 mb-0 d-grid gap-1">
+                    @for (item of payment.installments; track item.planId) {
+                      <li class="d-flex justify-content-between gap-2">
+                        <span class="text-truncate">{{ item.description }} · {{ item.number }}/{{ item.count }}</span>
+                        <span class="text-nowrap">{{ item.amount | money: item.currency }}</span>
+                      </li>
+                    }
+                  </ul>
+                </details>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+</div>
+
+<div class="row g-3 mt-0">
+  <div class="col-12 col-lg-8">
+    <section class="apana-card h-100" aria-labelledby="pagos-mes">
+      <h2 id="pagos-mes" class="apana-section-title">
+        <i class="fa-solid fa-list-check" aria-hidden="true"></i>Pagos de {{ monthLabel() }}
+      </h2>
+      @if (loading() && payments().length === 0) {
+        <p class="mb-0" role="status">Cargando…</p>
+      } @else if (payments().length === 0) {
+        <p class="mb-2">No hay pagos este mes.</p>
+        <p class="small mb-0">
+          Agrega tus <a routerLink="/finanzas/suscripciones">suscripciones</a> o
+          <a routerLink="/finanzas/importar">importa el estado de cuenta</a> de tu tarjeta: sus vencimientos aparecen aquí solos.
+        </p>
+      } @else {
+        <ul class="list-unstyled mb-0">
+          @for (payment of payments(); track payment.key) {
+            <li class="payment-row">
+              <button type="button" class="payment-date btn btn-link p-0" (click)="selected.set(payment.date)">
+                {{ formatDay(payment.date) }}
+              </button>
+              <div class="flex-grow-1 min-w-0">
+                <div class="fw-semibold text-truncate">{{ payment.label }}</div>
+                <div class="small">
+                  {{ payment.type === 'card' ? 'Tarjeta' : 'Suscripción' }}@if (payment.estimated) { · estimado }
+                </div>
+              </div>
+              <span class="small text-nowrap status-{{ payment.status }}">
+                <i class="fa-solid {{ statusIcons[payment.status] }} me-1" aria-hidden="true"></i>{{ statusLabels[payment.status] }}
+              </span>
+              <span class="fw-semibold text-nowrap amount">
+                @if (payment.amount !== null) { {{ payment.amount | money: payment.currency }} }
+              </span>
+            </li>
+          }
+        </ul>
+        <p class="small mt-3 mb-0">
+          "Pagado" significa que el cargo aparece en los movimientos que registraste o importaste.
+          Importa tu cartola para que los pagos se confirmen solos.
+        </p>
+      }
+    </section>
+  </div>
+  <div class="col-12 col-lg-4">
+    <section class="apana-card h-100" aria-labelledby="feriados-mes">
+      <h2 id="feriados-mes" class="apana-section-title">
+        <i class="fa-solid fa-umbrella-beach" aria-hidden="true"></i>Feriados de {{ monthLabel() }}
+      </h2>
+      @if (holidayList().length === 0) {
+        <p class="mb-0">Este mes no tiene feriados nacionales.</p>
+      } @else {
+        <ul class="list-unstyled d-grid gap-2 mb-0">
+          @for (holiday of holidayList(); track holiday.date) {
+            <li class="d-flex gap-2">
+              <button type="button" class="btn btn-link p-0 red fw-semibold text-nowrap" (click)="selected.set(holiday.date)">
+                {{ formatDay(holiday.date) }}
+              </button>
+              <span>{{ holiday.name }}@if (holiday.irrenunciable) { <span class="small"> · irrenunciable</span> }</span>
+            </li>
+          }
+        </ul>
+      }
+      <p class="small mt-3 mb-0">Feriados nacionales legales. No incluye feriados regionales ni de elecciones.</p>
+    </section>
+  </div>
+</div>

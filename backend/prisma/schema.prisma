@@ -59,3 +59,134 @@ model AuditLog {
   @@map("audit_logs")
   @@schema("app")
 }
+
+// ---------------------------------------------------------------------------
+// Finanzas
+//
+// Montos: BigInt en unidad mínima con signo (negativo = sale plata, positivo =
+// entra) + `currency`. Días sin hora: `date`. Los movimientos importados llevan
+// `dedupe_key` (huella) para que subir dos veces la misma cartola no duplique.
+
+model FinancialAccount {
+  id            String            @id @default(uuid(7)) @db.Uuid
+  userId        String            @map("user_id") @db.Uuid
+  name          String            @db.VarChar(80)
+  /// checking | savings | credit_card | cash | other
+  kind          String            @db.VarChar(16)
+  institution   String?           @db.VarChar(60)
+  /// Solo los últimos 4 dígitos, nunca el número completo.
+  last4         String?           @db.VarChar(4)
+  currency      String            @default("CLP") @db.Char(3)
+  creditLimit   BigInt?           @map("credit_limit")
+  /// Tarjetas: día de cierre de facturación (1–31).
+  billingDay    Int?              @map("billing_day") @db.SmallInt
+  /// Tarjetas: día de pago (1–31).
+  paymentDay    Int?              @map("payment_day") @db.SmallInt
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  transactions  Transaction[]
+  plans         InstallmentPlan[]
+  statements    CardStatement[]
+  subscriptions Subscription[]
+
+  @@index([userId])
+  @@map("financial_accounts")
+  @@schema("app")
+}
+
+model Transaction {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  accountId   String           @map("account_id") @db.Uuid
+  date        DateTime         @db.Date
+  description String           @db.VarChar(200)
+  amount      BigInt
+  currency    String           @db.Char(3)
+  /// expense | income | transfer | card_payment
+  kind        String           @db.VarChar(16)
+  category    String?          @db.VarChar(32)
+  /// manual | import
+  source      String           @default("manual") @db.VarChar(16)
+  dedupeKey   String?          @map("dedupe_key") @db.VarChar(64)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account     FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, dedupeKey])
+  @@index([userId, date])
+  @@map("transactions")
+  @@schema("app")
+}
+
+/// Compra en cuotas. Las cuotas no se guardan una por una: se calculan desde
+/// `first_due_month` (mes en que se paga la cuota 1). La última cuota es
+/// total − (N−1) × valor cuota, igual que lo calculan los bancos.
+model InstallmentPlan {
+  id                    String           @id @default(uuid(7)) @db.Uuid
+  userId                String           @map("user_id") @db.Uuid
+  accountId             String           @map("account_id") @db.Uuid
+  description           String           @db.VarChar(200)
+  purchaseDate          DateTime         @map("purchase_date") @db.Date
+  originalAmount        BigInt           @map("original_amount")
+  totalAmount           BigInt           @map("total_amount")
+  installmentCount      Int              @map("installment_count") @db.SmallInt
+  installmentAmount     BigInt           @map("installment_amount")
+  /// Valor real de la última cuota, si el estado de cuenta la mostró (a veces
+  /// el banco no ajusta el redondeo). Si es null: total − (N−1) × cuota.
+  lastInstallmentAmount BigInt?          @map("last_installment_amount")
+  firstDueMonth         DateTime         @map("first_due_month") @db.Date
+  currency              String           @db.Char(3)
+  category              String?          @db.VarChar(32)
+  dedupeKey             String           @map("dedupe_key") @db.VarChar(64)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account               FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, dedupeKey])
+  @@index([userId])
+  @@map("installment_plans")
+  @@schema("app")
+}
+
+/// Datos clave de un estado de cuenta de tarjeta (el archivo no se guarda).
+model CardStatement {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  accountId      String           @map("account_id") @db.Uuid
+  periodStart    DateTime         @map("period_start") @db.Date
+  periodEnd      DateTime         @map("period_end") @db.Date
+  dueDate        DateTime         @map("due_date") @db.Date
+  totalBilled    BigInt           @map("total_billed")
+  minimumPayment BigInt           @map("minimum_payment")
+  currency       String           @db.Char(3)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account        FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, periodEnd])
+  @@index([userId, dueDate])
+  @@map("card_statements")
+  @@schema("app")
+}
+
+model Subscription {
+  id        String            @id @default(uuid(7)) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  name      String            @db.VarChar(80)
+  amount    BigInt
+  currency  String            @default("CLP") @db.Char(3)
+  /// monthly | yearly
+  frequency String            @db.VarChar(8)
+  /// Fecha del primer cobro; de ahí salen el día de cobro y los siguientes.
+  startDate DateTime          @map("start_date") @db.Date
+  accountId String?           @map("account_id") @db.Uuid
+  category  String?           @db.VarChar(32)
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account   FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("subscriptions")
+  @@schema("app")
+}

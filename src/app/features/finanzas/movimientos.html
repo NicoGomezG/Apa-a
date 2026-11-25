@@ -1,0 +1,236 @@
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <app-month-picker [(month)]="month" />
+  <div class="d-flex flex-wrap gap-2">
+    <label class="visually-hidden" for="accountFilter">Filtrar por cuenta</label>
+    <select id="accountFilter" class="form-select form-select-sm w-auto" [ngModel]="accountFilter()" (ngModelChange)="accountFilter.set($event)">
+      <option value="">Todas las cuentas</option>
+      @for (account of accounts(); track account.id) {
+        <option [value]="account.id">{{ account.name }}</option>
+      }
+    </select>
+    <button type="button" class="btn btn-sm btn-primary" (click)="showForm.set(!showForm())" [disabled]="accounts().length === 0">
+      <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Agregar
+    </button>
+  </div>
+</div>
+
+@if (status(); as message) {
+  <div class="alert alert-info py-2" role="status">{{ message }}</div>
+}
+@if (error(); as message) {
+  <div class="alert alert-danger" role="alert">{{ message }}</div>
+}
+
+@if (showForm()) {
+  <section class="apana-card mb-3" aria-labelledby="nuevo-movimiento">
+    <h2 id="nuevo-movimiento" class="apana-section-title">
+      <i class="fa-solid fa-pen" aria-hidden="true"></i>Nuevo movimiento
+    </h2>
+    <form class="row g-3" (ngSubmit)="create()">
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="txAccount">Cuenta</label>
+        <select id="txAccount" name="accountId" class="form-select" [(ngModel)]="draft.accountId" required>
+          @for (account of accounts(); track account.id) {
+            <option [value]="account.id">{{ account.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-4">
+        <label class="form-label" for="txDate">Fecha</label>
+        <input id="txDate" name="date" type="date" class="form-control" [(ngModel)]="draft.date" required />
+      </div>
+      <div class="col-6 col-md-4">
+        <label class="form-label" for="txKind">Tipo</label>
+        <select id="txKind" name="kind" class="form-select" [(ngModel)]="draft.kind">
+          @for (kind of kinds; track kind) {
+            <option [value]="kind">{{ kindLabels[kind] }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="txDescription">Descripción</label>
+        <input id="txDescription" name="description" class="form-control" maxlength="200" [(ngModel)]="draft.description" required />
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label" for="txAmount">Monto</label>
+        <input id="txAmount" name="amount" class="form-control" inputmode="decimal" placeholder="12.990" [(ngModel)]="draft.amount" required />
+      </div>
+      @if (draft.kind === 'transfer' || draft.kind === 'card_payment') {
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="txDirection">Dirección</label>
+          <select id="txDirection" name="direction" class="form-select" [(ngModel)]="draft.direction">
+            <option value="out">Sale de la cuenta</option>
+            <option value="in">Entra a la cuenta</option>
+          </select>
+        </div>
+      } @else {
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="txCategory">Categoría</label>
+          <select id="txCategory" name="category" class="form-select" [(ngModel)]="draft.category">
+            <option value="">Sin categoría</option>
+            @for (category of categories; track category) {
+              <option [value]="category">{{ categoryLabel(category) }}</option>
+            }
+          </select>
+        </div>
+      }
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="btn btn-outline-primary" type="button" (click)="showForm.set(false)">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+<section class="apana-card mb-4" aria-labelledby="lista-movimientos">
+  <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
+    <h2 id="lista-movimientos" class="apana-section-title mb-0">
+      <i class="fa-solid fa-list" aria-hidden="true"></i>Movimientos de {{ formatMonth(month()) }}
+    </h2>
+    @if (transactions().length > 0) {
+      <span class="small">
+        Gastos: <strong>{{ totals().spent | money }}</strong>
+        @if (totals().hasIncome) {
+          · Ingresos: <strong class="text-success">{{ totals().income | money }}</strong>
+        }
+      </span>
+    }
+  </div>
+
+  @if (accounts().length === 0 && !loading()) {
+    <app-empty-state icon="fa-face-smile" title="Primero crea o importa una cuenta">
+      <a class="btn btn-sm btn-primary mt-3" routerLink="../importar">Importar cartola</a>
+    </app-empty-state>
+  } @else if (loading() && transactions().length === 0) {
+    <p class="text-secondary mb-0" role="status">Cargando…</p>
+  } @else if (transactions().length === 0) {
+    <app-empty-state icon="fa-face-smile" title="Sin movimientos este mes" description="Las compras en cuotas aparecen más abajo y en el resumen." />
+  } @else {
+    <div>
+      @for (tx of transactions(); track tx.id) {
+        <div class="tx-row">
+          <span class="tx-icon"><i class="fa-solid {{ categoryIcon(tx.category) }}" aria-hidden="true"></i></span>
+          <div class="min-w-0">
+            <div class="fw-semibold text-truncate">{{ tx.description }}</div>
+            <div class="small text-secondary text-truncate">
+              {{ formatDay(tx.date) }} · {{ accountById().get(tx.accountId)?.name }} ·
+              @if (tx.kind === 'expense' || tx.kind === 'income') {
+                {{ categoryLabel(tx.category) }}
+              } @else {
+                {{ kindLabels[tx.kind] }}
+              }
+            </div>
+          </div>
+          <div class="text-end">
+            <div class="fw-semibold text-nowrap" [class.text-success]="isIncoming(tx) && tx.kind === 'income'">
+              {{ tx.amount | money: tx.currency }}
+            </div>
+            <button type="button" class="btn btn-link btn-sm p-0" (click)="editingId() === tx.id ? editingId.set(null) : startEdit(tx)">
+              {{ editingId() === tx.id ? 'Cerrar' : 'Editar' }}
+            </button>
+          </div>
+        </div>
+        @if (editingId() === tx.id) {
+          <form class="row g-2 py-3 border-bottom" (ngSubmit)="saveEdit(tx)">
+            <div class="col-12 col-md-5">
+              <label class="form-label small" [for]="'d-' + tx.id">Descripción</label>
+              <input [id]="'d-' + tx.id" name="description" class="form-control form-control-sm" maxlength="200" [(ngModel)]="edit.description" />
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small" [for]="'k-' + tx.id">Tipo</label>
+              <select [id]="'k-' + tx.id" name="kind" class="form-select form-select-sm" [(ngModel)]="edit.kind">
+                @for (kind of kinds; track kind) {
+                  <option [value]="kind">{{ kindLabels[kind] }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-6 col-md-4">
+              <label class="form-label small" [for]="'c-' + tx.id">Categoría</label>
+              <select [id]="'c-' + tx.id" name="category" class="form-select form-select-sm" [(ngModel)]="edit.category">
+                <option value="">Sin categoría</option>
+                @for (category of categories; track category) {
+                  <option [value]="category">{{ categoryLabel(category) }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+              <button class="btn btn-sm btn-primary" type="submit">Guardar</button>
+              @if (confirmDeleteId() === tx.id) {
+                <span class="small align-self-center">¿Eliminar este movimiento?</span>
+                <button class="btn btn-sm btn-danger" type="button" (click)="remove(tx)">Sí, eliminar</button>
+                <button class="btn btn-sm btn-outline-primary" type="button" (click)="confirmDeleteId.set(null)">No</button>
+              } @else {
+                <button class="btn btn-sm btn-outline-danger" type="button" (click)="confirmDeleteId.set(tx.id)">Eliminar</button>
+              }
+            </div>
+          </form>
+        }
+      }
+    </div>
+  }
+</section>
+
+<section class="apana-card" aria-labelledby="compras-cuotas">
+  <h2 id="compras-cuotas" class="apana-section-title">
+    <i class="fa-solid fa-layer-group" aria-hidden="true"></i>Compras en cuotas
+  </h2>
+  <p class="small text-secondary">
+    Cada cuota se cuenta como gasto en el mes en que se paga. Se crean al importar estados de cuenta de tarjeta.
+  </p>
+  @if (activePlans().length === 0) {
+    <app-empty-state icon="fa-face-smile" title="No tienes cuotas pendientes" />
+  } @else {
+    <ul class="list-unstyled d-grid gap-3 mb-0">
+      @for (plan of activePlans(); track plan.id) {
+        <li class="border rounded-3 p-3">
+          <div class="d-flex flex-wrap justify-content-between gap-2">
+            <div class="min-w-0">
+              <div class="fw-semibold">{{ plan.description }}</div>
+              <div class="small text-secondary">
+                {{ accountById().get(plan.accountId)?.name }} · compra del {{ formatDay(plan.purchaseDate, true) }} ·
+                total {{ plan.totalAmount | money: plan.currency }}
+              </div>
+            </div>
+            <div class="text-end">
+              <div class="fw-semibold">{{ plan.installmentAmount | money: plan.currency }} / mes</div>
+              <div class="small text-secondary">Faltan {{ plan.status.remaining | money: plan.currency }}</div>
+            </div>
+          </div>
+          <div class="progress my-2" role="progressbar" [attr.aria-valuenow]="planProgress(plan)" aria-valuemin="0" aria-valuemax="100"
+               [attr.aria-label]="'Cuotas pagadas: ' + plan.status.paidCount + ' de ' + plan.installmentCount">
+            <div class="progress-bar" [style.width.%]="planProgress(plan)"></div>
+          </div>
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 small">
+            <span>
+              {{ plan.status.paidCount }} de {{ plan.installmentCount }} pagadas
+              @if (plan.status.next; as next) {
+                · cuota {{ next.number }} en {{ formatMonth(next.month, true) }}: {{ next.amount | money: plan.currency }}
+              }
+              · última en {{ formatMonth(plan.status.lastMonth, true) }}
+            </span>
+            <span class="d-flex gap-2 align-items-center">
+              <label class="visually-hidden" [for]="'pc-' + plan.id">Categoría</label>
+              <select [id]="'pc-' + plan.id" class="form-select form-select-sm w-auto" [ngModel]="plan.category ?? ''" (ngModelChange)="setPlanCategory(plan, $event)">
+                <option value="">Sin categoría</option>
+                @for (category of categories; track category) {
+                  <option [value]="category">{{ categoryLabel(category) }}</option>
+                }
+              </select>
+              @if (confirmDeleteId() === plan.id) {
+                <button class="btn btn-sm btn-danger" type="button" (click)="removePlan(plan)">Eliminar</button>
+                <button class="btn btn-sm btn-outline-primary" type="button" (click)="confirmDeleteId.set(null)">No</button>
+              } @else {
+                <button class="btn btn-sm btn-outline-danger" type="button" (click)="confirmDeleteId.set(plan.id)" aria-label="Eliminar compra en cuotas">
+                  <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>
+              }
+            </span>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+  @if (finishedPlans().length > 0) {
+    <p class="small text-secondary mt-3 mb-0">{{ finishedPlans().length }} compras en cuotas ya terminadas.</p>
+  }
+</section>

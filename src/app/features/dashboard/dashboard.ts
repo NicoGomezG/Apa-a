@@ -1,6 +1,10 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { formatLongDate, greetingFor } from '../../core/format/format';
+import { nextHoliday } from '../../core/calendar/holidays-cl';
+import { formatDay, formatLongDate, greetingFor, todayIn } from '../../core/format/format';
+import { MoneyPipe } from '../../core/format/money.pipe';
+import type { UpcomingPayment } from '../finanzas/finance.models';
+import { FinanceService } from '../finanzas/finance.service';
 import { ProfileService } from '../../core/profile/profile.service';
 import { EmptyState } from '../../shared/ui/empty-state';
 
@@ -26,7 +30,7 @@ const SECTIONS: DashboardSection[] = [
   },
   {
     key: 'agenda',
-    title: 'Agenda y recordatorios',
+    title: 'Agenda',
     icon: 'fa-calendar-days',
     path: '/agenda',
     emptyTitle: 'Nada agendado',
@@ -60,16 +64,30 @@ const SECTIONS: DashboardSection[] = [
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, EmptyState],
+  imports: [RouterLink, EmptyState, MoneyPipe],
   templateUrl: './dashboard.html',
 })
 export class Dashboard {
   protected readonly profile = inject(ProfileService);
+  private readonly finance = inject(FinanceService);
   protected readonly sections = SECTIONS;
+  protected readonly formatDay = formatDay;
+
+  /** Próximos pagos reales (tarjetas y suscripciones). Si falla, queda el estado vacío. */
+  protected readonly upcomingPayments = signal<UpcomingPayment[]>([]);
+
+  constructor() {
+    this.finance
+      .summary()
+      .then((summary) => this.upcomingPayments.set(summary.upcoming.slice(0, 5)))
+      .catch(() => this.upcomingPayments.set([]));
+  }
 
   private readonly now = new Date();
   protected readonly greeting = computed(() => greetingFor(this.now, this.profile.timezone()));
   protected readonly today = computed(() => formatLongDate(this.now, this.profile.timezone()));
+  /** Feriado real calculado por ley; no es un dato de ejemplo. */
+  protected readonly nextHoliday = computed(() => nextHoliday(todayIn(this.profile.timezone(), this.now)));
 
   protected readonly steps = computed(() => {
     const me = this.profile.me();

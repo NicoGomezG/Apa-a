@@ -10,6 +10,8 @@ import { registerErrorHandler } from './lib/errors.js';
 import type { AccountRepository } from './modules/account/account.repository.js';
 import { accountRoutes } from './modules/account/account.routes.js';
 import type { AuditRepository } from './modules/audit/audit.repository.js';
+import type { FinanceRepository } from './modules/finance/finance.repository.js';
+import { financeRoutes } from './modules/finance/finance.routes.js';
 import type { ProfileRepository } from './modules/profile/profile.repository.js';
 import { profileRoutes } from './modules/profile/profile.routes.js';
 import { authPlugin } from './plugins/auth.js';
@@ -20,6 +22,9 @@ export interface AppDeps {
   profiles: ProfileRepository;
   audit: AuditRepository;
   account: AccountRepository;
+  finance: FinanceRepository;
+  /** Reloj inyectable (pruebas). Por defecto, la hora real. */
+  now?: () => Date;
 }
 
 export const API_PREFIX = '/api';
@@ -64,6 +69,7 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
       api.get('/health', async () => ({ status: 'ok' }));
       await api.register(profileRoutes, deps);
       await api.register(accountRoutes, deps);
+      await api.register(financeRoutes, { ...deps, prefix: '/finance' });
     },
     { prefix: API_PREFIX },
   );
