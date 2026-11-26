@@ -23,6 +23,10 @@ datasource db {
 model Profile {
   id          String           @id @db.Uuid
   displayName String?          @map("display_name") @db.VarChar(80)
+  /// Cumpleaños propio. Los amigos ven día y mes (nunca el año).
+  birthDay    Int?             @map("birth_day") @db.SmallInt
+  birthMonth  Int?             @map("birth_month") @db.SmallInt
+  birthYear   Int?             @map("birth_year") @db.SmallInt
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   preferences UserPreferences?
@@ -211,10 +215,13 @@ model Contact {
   /// familia | amistad | pareja | trabajo | otro
   relationship String?            @db.VarChar(16)
   notes        String?            @db.VarChar(500)
+  /// Amigo de Apaña al que corresponde este contacto (uno por amigo).
+  friendUserId String?            @map("friend_user_id") @db.Uuid
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   participants SplitParticipant[]
 
+  @@unique([userId, friendUserId])
   @@index([userId])
   @@map("contacts")
   @@schema("app")
@@ -248,6 +255,10 @@ model SplitParticipant {
   contactId        String?           @map("contact_id") @db.Uuid
   /// La persona dueña del grupo.
   isMe             Boolean           @default(false) @map("is_me")
+  /// Amigo con cuenta en Apaña que ve el grupo y puede informar pagos.
+  linkedUserId     String?           @map("linked_user_id") @db.Uuid
+  /// Último recordatorio de pago enviado a este amigo.
+  remindedAt       DateTime?         @map("reminded_at") @db.Timestamptz(6)
   position         Int               @db.SmallInt
   createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   group            SplitGroup        @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -259,6 +270,7 @@ model SplitParticipant {
 
   @@index([groupId])
   @@index([userId])
+  @@index([linkedUserId])
   @@map("split_participants")
   @@schema("app")
 }
@@ -326,20 +338,50 @@ model SplitShare {
 
 /// Pago entre personas del grupo para saldar deudas.
 model SplitSettlement {
-  id        String           @id @default(uuid(7)) @db.Uuid
-  groupId   String           @map("group_id") @db.Uuid
-  userId    String           @map("user_id") @db.Uuid
-  fromId    String           @map("from_id") @db.Uuid
-  toId      String           @map("to_id") @db.Uuid
-  amount    BigInt
-  date      DateTime         @db.Date
-  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  group     SplitGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  from      SplitParticipant @relation("SettlementFrom", fields: [fromId], references: [id], onDelete: NoAction)
-  to        SplitParticipant @relation("SettlementTo", fields: [toId], references: [id], onDelete: NoAction)
+  id         String           @id @default(uuid(7)) @db.Uuid
+  groupId    String           @map("group_id") @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  fromId     String           @map("from_id") @db.Uuid
+  toId       String           @map("to_id") @db.Uuid
+  amount     BigInt
+  date       DateTime         @db.Date
+  /// false = informado por un amigo y aún sin confirmar por el dueño (no cuenta en los saldos).
+  confirmed  Boolean          @default(true)
+  /// Amigo que informó el pago; null si lo registró el dueño.
+  reportedBy String?          @map("reported_by") @db.Uuid
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  group      SplitGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  from       SplitParticipant @relation("SettlementFrom", fields: [fromId], references: [id], onDelete: NoAction)
+  to         SplitParticipant @relation("SettlementTo", fields: [toId], references: [id], onDelete: NoAction)
 
   @@index([groupId])
   @@index([userId])
   @@map("split_settlements")
+  @@schema("app")
+}
+
+/// Invitación de amistad por enlace: un solo uso, vence a los 7 días.
+model FriendInvite {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  code      String   @unique @db.VarChar(64)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("friend_invites")
+  @@schema("app")
+}
+
+/// Amistad entre dos cuentas. Se guarda una sola fila por par, con user_a_id < user_b_id.
+model Friendship {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userAId   String   @map("user_a_id") @db.Uuid
+  userBId   String   @map("user_b_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([userAId, userBId])
+  @@index([userBId])
+  @@map("friendships")
   @@schema("app")
 }

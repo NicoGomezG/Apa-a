@@ -1,10 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { birthdayFields, checkBirthday } from '../../lib/birthday.js';
 import { AppError, badRequest, notFound } from '../../lib/errors.js';
 import { day, money, optionalEmail, optionalText, positiveMoney, text } from '../../lib/schemas.js';
 import { currentUser } from '../../plugins/auth.js';
 import type { AuditAction, AuditRepository } from '../audit/audit.repository.js';
+import type { FriendsRepository } from '../friends/friends.repository.js';
 import { toJson } from '../finance/finance.routes.js';
 import { SUPPORTED_CURRENCIES } from '../finance/finance.types.js';
 import { ensureProfile } from '../profile/profile.routes.js';
@@ -15,6 +17,7 @@ import { computeBalances, computeSplit, simplifyDebts, SplitError, type SplitInp
 
 export interface PeopleRoutesDeps {
   people: PeopleRepository;
+  friends: FriendsRepository;
   profiles: ProfileRepository;
   audit: AuditRepository;
   now?: () => Date;
@@ -22,19 +25,17 @@ export interface PeopleRoutesDeps {
 
 export const SHARE_TOKEN_RE = /^[A-Za-z0-9_-]{32}$/;
 export const LIMITS = { participants: 30, items: 100 } as const;
+/** Entre un recordatorio de pago y el siguiente al mismo amigo. */
+export const REMINDER_COOLDOWN_MS = 20 * 60 * 60 * 1000;
 
-const conflict = (message: string) => new AppError(409, 'CONFLICT', message);
+export const conflict = (message: string) => new AppError(409, 'CONFLICT', message);
 
 // --- Esquemas -----------------------------------------------------------------
-
-const daysInMonth = (month: number) => new Date(Date.UTC(2000, month, 0)).getUTCDate(); // 2000: bisiesto, admite 29-feb
 
 const contactFields = {
   name: text(80),
   nickname: optionalText(40),
-  birthDay: z.number().int().min(1).max(31).nullable().optional(),
-  birthMonth: z.number().int().min(1).max(12).nullable().optional(),
-  birthYear: z.number().int().min(1900).max(2100).nullable().optional(),
+  ...birthdayFields,
   phone: optionalText(30).refine((value) => !value || /^[+\d\s()-]{6,30}$/.test(value), 'Teléfono inválido'),
   email: optionalEmail,
   relationship: z.enum(RELATIONSHIPS).nullable().optional(),
@@ -47,27 +48,16 @@ const updateContactBody = z
   .partial()
   .refine((value) => Object.keys(value).length > 0, 'Sin cambios');
 
-/** Valida que el cumpleaños sea un día real; el año solo tiene sentido con día y mes. */
-function checkBirthday(contact: Pick<ContactInput, 'birthDay' | 'birthMonth' | 'birthYear'>, currentYear: number): void {
-  const { birthDay, birthMonth, birthYear } = contact;
-  if ((birthDay === null) !== (birthMonth === null)) throw badRequest('Indica el día y el mes del cumpleaños');
-  if (birthDay !== null && birthMonth !== null && birthDay > daysInMonth(birthMonth)) {
-    throw badRequest('Ese día no existe en ese mes');
-  }
-  if (birthYear !== null) {
-    if (birthDay === null) throw badRequest('Indica el día y el mes además del año');
-    if (birthYear > currentYear) throw badRequest('El año de nacimiento no puede ser futuro');
-    if (birthDay === 29 && birthMonth === 2 && !isLeap(birthYear)) throw badRequest('Ese año no tuvo 29 de febrero');
-  }
-}
-
-const isLeap = (year: number) => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-
 const groupParams = z.object({ groupId: z.uuid() });
 const groupChildParams = z.object({ groupId: z.uuid(), id: z.uuid() });
 const idParams = z.object({ id: z.uuid() });
 
-const participantBody = z.object({ name: text(80), contactId: z.uuid().nullable().optional() });
+const participantBody = z.object({
+  name: text(80),
+  contactId: z.uuid().nullable().optional(),
+  /** Amigo con cuenta en Apaña: verá el grupo y podrá informar pagos. */
+  friendId: z.uuid().nullable().optional(),
+});
 
 const createGroupBody = z.object({
   name: text(80),
@@ -111,9 +101,9 @@ const settlementBody = z
 
 // --- Respuestas ------------------------------------------------------------------
 
-/** Grupo con saldos y transferencias sugeridas. */
+/** Grupo con saldos y transferencias sugeridas. Los pagos sin confirmar no cuentan. */
 export function groupView(detail: GroupDetail) {
-  const balances = computeBalances(detail);
+  const balances = computeBalances({ ...detail, settlements: detail.settlements.filter((settlement) => settlement.confirmed) });
   return {
     ...detail,
     totalSpent: detail.expenses.reduce((sum, expense) => sum + expense.total, 0n),
@@ -141,7 +131,9 @@ export function publicGroupView(detail: GroupDetail) {
       items,
       shares,
     })),
-    settlements: view.settlements.map(({ id, fromId, toId, amount, date }) => ({ id, fromId, toId, amount, date })),
+    settlements: view.settlements
+      .filter((settlement) => settlement.confirmed)
+      .map(({ id, fromId, toId, amount, date }) => ({ id, fromId, toId, amount, date })),
     totalSpent: view.totalSpent,
     balances: view.balances,
     transfers: view.transfers,
@@ -165,6 +157,13 @@ export const peopleRoutes: FastifyPluginAsyncZod<PeopleRoutesDeps> = async (app,
 
   const requireContact = async (userId: string, contactId: string | null | undefined) => {
     if (contactId && !(await deps.people.findContact(userId, contactId))) throw notFound('No encontramos ese contacto');
+  };
+
+  /** Solo se enlaza a amigos, y cada amigo una vez por grupo. */
+  const requireFriend = async (userId: string, friendId: string | null | undefined, taken: (string | null)[] = []) => {
+    if (!friendId) return;
+    if (!(await deps.friends.areFriends(userId, friendId))) throw notFound('No encontramos a ese amigo');
+    if (taken.includes(friendId)) throw conflict('Ese amigo ya está en el grupo');
   };
 
   // --- Contactos ---------------------------------------------------------------
@@ -223,8 +222,9 @@ export const peopleRoutes: FastifyPluginAsyncZod<PeopleRoutesDeps> = async (app,
           ...detail.group,
           shared: detail.group.shareToken !== null,
           shareToken: undefined,
-          participants: detail.participants.map(({ id, name, isMe }) => ({ id, name, isMe })),
+          participants: detail.participants.map(({ id, name, isMe, linkedUserId }) => ({ id, name, isMe, linkedUserId })),
           expenseCount: detail.expenses.length,
+          pendingPayments: detail.settlements.filter((settlement) => !settlement.confirmed).length,
           totalSpent: view.totalSpent,
           myBalance: me ? (view.balances.find((item) => item.participantId === me.id)?.balance ?? 0n) : null,
           settled: view.transfers.length === 0,
@@ -236,14 +236,24 @@ export const peopleRoutes: FastifyPluginAsyncZod<PeopleRoutesDeps> = async (app,
   app.post('/groups', { schema: { body: createGroupBody } }, async (request, reply) => {
     const user = currentUser(request);
     const body = request.body;
-    for (const participant of body.participants) await requireContact(user.id, participant.contactId);
+    const friendIds: string[] = [];
+    for (const participant of body.participants) {
+      await requireContact(user.id, participant.contactId);
+      await requireFriend(user.id, participant.friendId, friendIds);
+      if (participant.friendId) friendIds.push(participant.friendId);
+    }
     const profile = await ensureProfile(deps, user);
     const detail = await deps.people.createGroup(
       user.id,
       { name: body.name, date: body.date ?? null, currency: body.currency },
       [
-        { name: profile.displayName?.trim() || 'Yo', contactId: null, isMe: true },
-        ...body.participants.map((participant) => ({ name: participant.name, contactId: participant.contactId ?? null, isMe: false })),
+        { name: profile.displayName?.trim() || 'Yo', contactId: null, isMe: true, linkedUserId: null },
+        ...body.participants.map((participant) => ({
+          name: participant.name,
+          contactId: participant.contactId ?? null,
+          isMe: false,
+          linkedUserId: participant.friendId ?? null,
+        })),
       ],
     );
     await audit(user.id, 'people.group.created', 'split_group', detail.group.id);
@@ -295,10 +305,12 @@ export const peopleRoutes: FastifyPluginAsyncZod<PeopleRoutesDeps> = async (app,
     const detail = await loadGroup(user.id, request.params.groupId);
     if (detail.participants.length >= LIMITS.participants) throw badRequest(`Máximo ${LIMITS.participants} personas por grupo`);
     await requireContact(user.id, request.body.contactId);
+    await requireFriend(user.id, request.body.friendId, detail.participants.map((item) => item.linkedUserId));
     const participant = await deps.people.addParticipant(user.id, detail.group.id, {
       name: request.body.name,
       contactId: request.body.contactId ?? null,
       isMe: false,
+      linkedUserId: request.body.friendId ?? null,
     });
     await audit(user.id, 'people.participant.added', 'split_participant', participant.id);
     return reply.status(201).send(toJson(participant));
@@ -309,8 +321,24 @@ export const peopleRoutes: FastifyPluginAsyncZod<PeopleRoutesDeps> = async (app,
     { schema: { params: groupChildParams, body: participantBody.partial() } },
     async (request) => {
       const user = currentUser(request);
-      await requireContact(user.id, request.body.contactId);
-      const participant = await deps.people.updateParticipant(user.id, request.params.groupId, request.params.id, request.body);
+      const detail = await loadGroup(user.id, request.params.groupId);
+      const current = detail.participants.find((item) => item.id === request.params.id);
+      if (!current) throw notFound('No encontramos a esa persona en el grupo');
+      const { friendId, ...rest } = request.body;
+      await requireContact(user.id, rest.contactId);
+      if (friendId !== undefined) {
+        if (current.isMe && friendId) throw badRequest('No puedes enlazarte a ti mismo con un amigo');
+        await requireFriend(
+          user.id,
+          friendId,
+          detail.participants.filter((item) => item.id !== current.id).map((item) => item.linkedUserId),
+        );
+      }
+      const changes = {
+        ...rest,
+        ...(friendId !== undefined && friendId !== current.linkedUserId ? { linkedUserId: friendId, remindedAt: null } : {}),
+      };
+      const participant = await deps.people.updateParticipant(user.id, detail.group.id, current.id, changes);
       if (!participant) throw notFound('No encontramos a esa persona en el grupo');
       await audit(user.id, 'people.participant.updated', 'split_participant', participant.id, Object.keys(request.body));
       return toJson(participant);
@@ -410,9 +438,40 @@ export const peopleRoutes: FastifyPluginAsyncZod<PeopleRoutesDeps> = async (app,
     const detail = await loadGroup(user.id, request.params.groupId);
     const ids = new Set(detail.participants.map((participant) => participant.id));
     if (!ids.has(request.body.fromId) || !ids.has(request.body.toId)) throw badRequest('Esa persona no está en el grupo');
-    const settlement = await deps.people.createSettlement(user.id, detail.group.id, request.body);
+    const settlement = await deps.people.createSettlement(user.id, detail.group.id, {
+      ...request.body,
+      confirmed: true,
+      reportedBy: null,
+    });
     await audit(user.id, 'people.settlement.created', 'split_settlement', settlement.id);
     return reply.status(201).send(toJson(settlement));
+  });
+
+  /** Confirma un pago que informó un amigo: desde ahora cuenta en los saldos. */
+  app.post('/groups/:groupId/settlements/:id/confirm', { schema: { params: groupChildParams } }, async (request) => {
+    const user = currentUser(request);
+    const settlement = await deps.people.confirmSettlement(user.id, request.params.groupId, request.params.id);
+    if (!settlement) throw notFound('No encontramos ese pago por confirmar');
+    await audit(user.id, 'people.settlement.confirmed', 'split_settlement', settlement.id);
+    return toJson(settlement);
+  });
+
+  // --- Recordatorio de pago a un amigo -----------------------------------------
+  app.post('/groups/:groupId/participants/:id/remind', { schema: { params: groupChildParams } }, async (request) => {
+    const user = currentUser(request);
+    const detail = await loadGroup(user.id, request.params.groupId);
+    const participant = detail.participants.find((item) => item.id === request.params.id);
+    if (!participant) throw notFound('No encontramos a esa persona en el grupo');
+    if (!participant.linkedUserId) throw badRequest('Solo puedes recordarle a un amigo con cuenta en Apaña');
+    const balance = groupView(detail).balances.find((item) => item.participantId === participant.id)?.balance ?? 0n;
+    if (balance >= 0n) throw conflict('Esta persona no tiene deudas en el grupo');
+    const sentAt = now();
+    if (participant.remindedAt && sentAt.getTime() - participant.remindedAt.getTime() < REMINDER_COOLDOWN_MS) {
+      throw conflict('Ya le recordaste hace poco. Puedes volver a hacerlo mañana.');
+    }
+    const updated = await deps.people.updateParticipant(user.id, detail.group.id, participant.id, { remindedAt: sentAt });
+    await audit(user.id, 'people.reminder.sent', 'split_participant', participant.id);
+    return toJson(updated);
   });
 
   app.delete('/groups/:groupId/settlements/:id', { schema: { params: groupChildParams } }, async (request, reply) => {

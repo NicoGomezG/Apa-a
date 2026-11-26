@@ -5,6 +5,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { apiErrorMessage } from '../../core/http-errors';
 import { DELETE_CONFIRMATION, ProfileService } from '../../core/profile/profile.service';
 import { PageHeader } from '../../shared/ui/page-header';
+import { MONTH_NAMES } from '../../core/calendar/birthdays';
 
 type Status = { kind: 'success' | 'error'; message: string } | null;
 type SavingKey = 'profile' | 'preferences' | 'password' | 'export' | 'delete';
@@ -35,8 +36,13 @@ export class Settings {
     { value: 'EUR', label: 'Euro (EUR)' },
   ];
   protected readonly deletePhrase = DELETE_CONFIRMATION;
+  protected readonly months = MONTH_NAMES;
+  protected readonly days = Array.from({ length: 31 }, (_, i) => i + 1);
 
   protected displayName = '';
+  protected birthDay: number | null = null;
+  protected birthMonth: number | null = null;
+  protected birthYear = '';
   protected timezone = '';
   protected currency = '';
   protected newPassword = '';
@@ -53,15 +59,28 @@ export class Settings {
       const me = this.profile.me();
       if (!me) return;
       this.displayName = me.displayName ?? '';
+      this.birthDay = me.birthDay;
+      this.birthMonth = me.birthMonth;
+      this.birthYear = me.birthYear ? String(me.birthYear) : '';
       this.timezone = me.preferences.timezone;
       this.currency = me.preferences.currency;
     });
   }
 
   protected async saveProfile(): Promise<void> {
+    const year = this.birthYear.trim();
+    if (year && !/^\d{4}$/.test(year)) {
+      this.profileStatus.set({ kind: 'error', message: 'Escribe el año con 4 dígitos, o déjalo vacío.' });
+      return;
+    }
     await this.run('profile', this.profileStatus, async () => {
-      await this.profile.updateDisplayName(this.displayName);
-      return 'Guardamos tu nombre.';
+      await this.profile.updateProfile({
+        displayName: this.displayName,
+        birthDay: this.birthDay,
+        birthMonth: this.birthMonth,
+        birthYear: year ? Number(year) : null,
+      });
+      return 'Guardamos tu perfil.';
     });
   }
 

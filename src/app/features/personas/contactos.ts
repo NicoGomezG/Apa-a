@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { daysUntilLabel, nextBirthday, upcomingBirthdays } from '../../core/calendar/birthdays';
+import { daysUntilLabel, MONTH_NAMES, nextBirthday, upcomingBirthdays } from '../../core/calendar/birthdays';
 import { formatDay, todayIn } from '../../core/format/format';
 import { apiErrorMessage } from '../../core/http-errors';
 import { ProfileService } from '../../core/profile/profile.service';
@@ -8,20 +8,6 @@ import { EmptyState } from '../../shared/ui/empty-state';
 import { RELATIONSHIP_LABELS, RELATIONSHIPS, type Contact, type ContactPayload, type Relationship } from './people.models';
 import { PeopleService } from './people.service';
 
-export const MONTH_NAMES = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-];
 
 /** Días del mes contando el 29 de febrero (vale para cumpleaños sin año). */
 const maxDay = (month: number | null) => (month ? new Date(Date.UTC(2000, month, 0)).getUTCDate() : 31);

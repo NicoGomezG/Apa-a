@@ -1,5 +1,21 @@
 // Cumpleaños a partir de día/mes (y año opcional). Son días del calendario, sin zonas horarias.
 
+/** Meses en minúscula, para "3 de diciembre". */
+export const MONTH_NAMES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
 export interface BirthdayPerson {
   id: string;
   name: string;

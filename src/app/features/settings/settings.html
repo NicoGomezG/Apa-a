@@ -14,6 +14,34 @@
           <input id="displayName" name="displayName" class="form-control" maxlength="80" autocomplete="name"
                  [(ngModel)]="displayName" />
         </div>
+        <fieldset>
+          <legend class="form-label fs-6 mb-2">Tu cumpleaños</legend>
+          <div class="row g-2">
+            <div class="col-4">
+              <label class="visually-hidden" for="birthDay">Día</label>
+              <select id="birthDay" name="birthDay" class="form-select" [(ngModel)]="birthDay">
+                <option [ngValue]="null">Día</option>
+                @for (day of days; track day) {
+                  <option [ngValue]="day">{{ day }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-8 col-sm-5">
+              <label class="visually-hidden" for="birthMonth">Mes</label>
+              <select id="birthMonth" name="birthMonth" class="form-select" [(ngModel)]="birthMonth">
+                <option [ngValue]="null">Mes</option>
+                @for (month of months; track month; let i = $index) {
+                  <option [ngValue]="i + 1">{{ month }}</option>
+                }
+              </select>
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="visually-hidden" for="birthYear">Año (opcional)</label>
+              <input id="birthYear" name="birthYear" class="form-control" inputmode="numeric" maxlength="4" placeholder="Año" [(ngModel)]="birthYear" />
+            </div>
+          </div>
+          <div class="form-text">Tus amigos en Apaña ven el día y el mes, nunca el año.</div>
+        </fieldset>
         <div class="d-flex flex-wrap align-items-center gap-2">
           <button class="btn btn-primary" type="submit" [disabled]="saving() === 'profile'">
             {{ saving() === 'profile' ? 'Guardando…' : 'Guardar' }}

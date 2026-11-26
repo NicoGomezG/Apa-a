@@ -2,17 +2,25 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment.generated';
+import type { BirthdayPerson } from '../../core/calendar/birthdays';
+import { birthdayPeople } from './friends';
 import type {
   Contact,
   ContactPayload,
   Expense,
   ExpensePayload,
+  Friend,
+  FriendInvite,
   GroupDetail,
   GroupInfo,
   GroupSummary,
+  InvitePreview,
   Participant,
+  ParticipantPayload,
   PublicGroup,
   Settlement,
+  SharedGroupDetail,
+  SharedGroupSummary,
 } from './people.models';
 
 @Injectable({ providedIn: 'root' })
@@ -47,6 +55,12 @@ export class PeopleService {
     return this.delete(`/contacts/${id}`);
   }
 
+  /** Cumpleaños de contactos y amigos, sin duplicados. Si fallan los amigos, quedan los contactos. */
+  async birthdayPeople(): Promise<BirthdayPerson[]> {
+    const [contacts, friends] = await Promise.all([this.contacts(), this.friends().catch(() => [])]);
+    return birthdayPeople(contacts, friends);
+  }
+
   // --- Grupos ---
   groups() {
     return this.get<GroupSummary[]>('/groups');
@@ -54,7 +68,7 @@ export class PeopleService {
   group(id: string) {
     return this.get<GroupDetail>(`/groups/${id}`);
   }
-  createGroup(payload: { name: string; date: string | null; participants: { name: string; contactId: string | null }[] }) {
+  createGroup(payload: { name: string; date: string | null; participants: ParticipantPayload[] }) {
     return this.post<GroupDetail>('/groups', payload);
   }
   updateGroup(id: string, payload: { name?: string; date?: string | null }) {
@@ -71,8 +85,14 @@ export class PeopleService {
   }
 
   // --- Participantes ---
-  addParticipant(groupId: string, payload: { name: string; contactId: string | null }) {
+  addParticipant(groupId: string, payload: ParticipantPayload) {
     return this.post<Participant>(`/groups/${groupId}/participants`, payload);
+  }
+  linkParticipant(groupId: string, id: string, friendId: string | null) {
+    return this.patch<Participant>(`/groups/${groupId}/participants/${id}`, { friendId });
+  }
+  remind(groupId: string, id: string) {
+    return this.post<Participant>(`/groups/${groupId}/participants/${id}/remind`);
   }
   removeParticipant(groupId: string, id: string) {
     return this.delete(`/groups/${groupId}/participants/${id}`);
@@ -95,6 +115,50 @@ export class PeopleService {
   }
   deleteSettlement(groupId: string, id: string) {
     return this.delete(`/groups/${groupId}/settlements/${id}`);
+  }
+  confirmSettlement(groupId: string, id: string) {
+    return this.post<Settlement>(`/groups/${groupId}/settlements/${id}/confirm`);
+  }
+
+  // --- Grupos de otros donde participas como amigo ---
+  sharedGroups() {
+    return this.get<SharedGroupSummary[]>('/shared');
+  }
+  sharedGroup(id: string) {
+    return this.get<SharedGroupDetail>(`/shared/${id}`);
+  }
+  reportPayment(groupId: string, payload: { toId: string; amount: string; date: string }) {
+    return this.post<Settlement>(`/shared/${groupId}/settlements`, payload);
+  }
+  withdrawPayment(groupId: string, id: string) {
+    return this.delete(`/shared/${groupId}/settlements/${id}`);
+  }
+
+  // --- Amigos ---
+  private readonly friendsApi = `${environment.apiUrl}/friends`;
+  friends() {
+    return firstValueFrom(this.http.get<Friend[]>(this.friendsApi));
+  }
+  linkFriendContact(friendId: string, contactId: string | null) {
+    return firstValueFrom(this.http.patch<Friend>(`${this.friendsApi}/${friendId}`, { contactId }));
+  }
+  removeFriend(friendId: string) {
+    return firstValueFrom(this.http.delete<void>(`${this.friendsApi}/${friendId}`));
+  }
+  invites() {
+    return firstValueFrom(this.http.get<FriendInvite[]>(`${this.friendsApi}/invites`));
+  }
+  createInvite() {
+    return firstValueFrom(this.http.post<FriendInvite>(`${this.friendsApi}/invites`, {}));
+  }
+  revokeInvite(id: string) {
+    return firstValueFrom(this.http.delete<void>(`${this.friendsApi}/invites/${id}`));
+  }
+  previewInvite(code: string) {
+    return firstValueFrom(this.http.get<InvitePreview>(`${this.friendsApi}/invites/${encodeURIComponent(code)}/preview`));
+  }
+  acceptInvite(code: string) {
+    return firstValueFrom(this.http.post<{ alreadyFriends: boolean; friend: Friend }>(`${this.friendsApi}/accept`, { code }));
   }
 
   // --- Enlace público (sin sesión) ---

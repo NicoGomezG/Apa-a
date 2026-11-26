@@ -1,6 +1,7 @@
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { AuthUser } from '../../lib/auth/token-verifier.js';
+import { birthdayFields, checkBirthday } from '../../lib/birthday.js';
 import { currentUser } from '../../plugins/auth.js';
 import type { AuditRepository } from '../audit/audit.repository.js';
 import type { ProfileRecord, ProfileRepository } from './profile.repository.js';
@@ -19,6 +20,9 @@ const meSchema = z.object({
   id: z.uuid(),
   email: z.string().nullable(),
   displayName: z.string().nullable(),
+  birthDay: z.number().nullable(),
+  birthMonth: z.number().nullable(),
+  birthYear: z.number().nullable(),
   createdAt: z.date(),
   preferences: preferencesSchema,
 });
@@ -30,7 +34,9 @@ const displayNameSchema = z
   .transform((value) => (value === '' ? null : value))
   .nullable();
 
-const updateProfileBody = z.object({ displayName: displayNameSchema });
+const updateProfileBody = z
+  .object({ displayName: displayNameSchema.optional(), ...birthdayFields })
+  .refine((body) => Object.keys(body).length > 0, 'Sin cambios');
 
 const updatePreferencesBody = z
   .object({
@@ -46,6 +52,7 @@ const updatePreferencesBody = z
 export interface ProfileRoutesDeps {
   profiles: ProfileRepository;
   audit: AuditRepository;
+  now?: () => Date;
 }
 
 /** Devuelve el perfil del usuario, creándolo la primera vez que entra. */
@@ -75,14 +82,23 @@ export const profileRoutes: FastifyPluginAsyncZod<ProfileRoutesDeps> = async (ap
     { schema: { body: updateProfileBody, response: { 200: meSchema } } },
     async (request) => {
       const user = currentUser(request);
-      await ensureProfile(deps, user);
-      const profile = await deps.profiles.updateDisplayName(user.id, request.body.displayName);
+      const current = await ensureProfile(deps, user);
+      const changes = request.body;
+      checkBirthday(
+        {
+          birthDay: changes.birthDay !== undefined ? changes.birthDay : current.birthDay,
+          birthMonth: changes.birthMonth !== undefined ? changes.birthMonth : current.birthMonth,
+          birthYear: changes.birthYear !== undefined ? changes.birthYear : current.birthYear,
+        },
+        (deps.now?.() ?? new Date()).getUTCFullYear(),
+      );
+      const profile = await deps.profiles.update(user.id, changes);
       await deps.audit.record({
         userId: user.id,
         action: 'profile.updated',
         entityType: 'profile',
         entityId: user.id,
-        metadata: { fields: ['displayName'] },
+        metadata: { fields: Object.keys(changes) },
       });
       return toMe(profile, user);
     },

@@ -1,8 +1,9 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment.generated';
 import { AuthService } from '../../core/auth/auth.service';
+import { rememberRedirect } from '../../core/auth/pending-redirect';
 
 @Component({
   selector: 'app-register',
@@ -58,13 +59,16 @@ import { AuthService } from '../../core/auth/auth.service';
           }
         </section>
 
-        <p class="text-center mt-3">¿Ya tienes cuenta? <a routerLink="/auth/ingresar">Ingresa</a></p>
+        <p class="text-center mt-3">¿Ya tienes cuenta? <a routerLink="/auth/ingresar" [queryParams]="volver() ? { volver: volver() } : {}">Ingresa</a></p>
       </div>
     </main>
   `,
 })
 export class Register {
   private readonly auth = inject(AuthService);
+
+  /** Adónde volver después de confirmar la cuenta (p. ej. una invitación de amistad). */
+  readonly volver = input<string>();
 
   protected readonly googleEnabled = environment.googleAuthEnabled;
   protected name = '';
@@ -85,6 +89,7 @@ export class Register {
     }
     this.loading.set(true);
     this.error.set(null);
+    rememberRedirect(this.volver());
     const result = await this.auth.signUp(this.email.trim(), this.password, this.name.trim());
     this.loading.set(false);
     if (result.ok) {
@@ -96,6 +101,7 @@ export class Register {
   }
 
   protected async google(): Promise<void> {
+    rememberRedirect(this.volver());
     this.loading.set(true);
     const result = await this.auth.signInWithGoogle();
     if (!result.ok) {

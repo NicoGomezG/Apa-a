@@ -7,6 +7,7 @@ import { createPrisma } from './lib/prisma.js';
 import { createPrismaAccountRepository } from './modules/account/account.repository.js';
 import { createPrismaAuditRepository } from './modules/audit/audit.repository.js';
 import { createPrismaFinanceRepository } from './modules/finance/finance.repository.js';
+import { createPrismaFriendsRepository } from './modules/friends/friends.repository.js';
 import { createPrismaPeopleRepository } from './modules/people/people.repository.js';
 import { createPrismaProfileRepository } from './modules/profile/profile.repository.js';
 
@@ -23,6 +24,7 @@ export async function createApp(): Promise<FastifyInstance> {
     account: createPrismaAccountRepository(prisma),
     finance: createPrismaFinanceRepository(prisma),
     people: createPrismaPeopleRepository(prisma),
+    friends: createPrismaFriendsRepository(prisma),
   });
   app.addHook('onClose', async () => prisma.$disconnect());
   return app;

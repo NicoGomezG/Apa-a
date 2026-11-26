@@ -9,14 +9,19 @@ import {
   SPLIT_MODE_LABELS,
   type Contact,
   type Expense,
+  type Friend,
+  type Participant,
   type ExpensePayload,
   type GroupDetail,
   type SplitMode,
 } from './people.models';
 import { PeopleService } from './people.service';
+import { friendName } from './friends';
 import { computeSplit, SplitError, type SplitResult } from './split.math';
 
 export const DEFAULT_TIP_PERCENT = 10;
+/** Igual que en el backend: un recordatorio por amigo cada 20 horas. */
+const REMINDER_COOLDOWN_MS = 20 * 60 * 60 * 1000;
 
 interface ItemDraft {
   description: string;
@@ -58,6 +63,7 @@ export class PersonasGrupo {
 
   protected readonly detail = signal<GroupDetail | null>(null);
   protected readonly contacts = signal<Contact[]>([]);
+  protected readonly friends = signal<Friend[]>([]);
   protected readonly loading = signal(true);
   protected readonly status = signal<{ kind: 'success' | 'error'; message: string } | null>(null);
   protected readonly busy = signal(false);
@@ -70,6 +76,10 @@ export class PersonasGrupo {
   protected draft: ExpenseDraft = this.emptyDraft();
   protected newParticipant = '';
   protected contactChoice = '';
+  protected friendChoice = '';
+  protected linkParticipantId = '';
+  protected linkFriendId = '';
+  protected readonly friendName = friendName;
 
   private readonly today = todayIn(this.profile.timezone());
 
@@ -102,6 +112,22 @@ export class PersonasGrupo {
     return token ? `${location.origin}/compartido/${token}` : null;
   });
 
+  /** Amigos que todavía no están enlazados a nadie del grupo. */
+  protected readonly availableFriends = computed(() => {
+    const used = new Set((this.detail()?.participants ?? []).map((participant) => participant.linkedUserId));
+    return this.friends().filter((friend) => !used.has(friend.userId));
+  });
+
+  /** Personas del grupo que se pueden enlazar con un amigo (todas menos tú). */
+  protected readonly linkable = computed(() => (this.detail()?.participants ?? []).filter((participant) => !participant.isMe));
+
+  protected readonly participantsById = computed(
+    () => new Map((this.detail()?.participants ?? []).map((participant) => [participant.id, participant])),
+  );
+
+  protected readonly pendingSettlements = computed(() => (this.detail()?.settlements ?? []).filter((item) => !item.confirmed));
+  protected readonly confirmedSettlements = computed(() => (this.detail()?.settlements ?? []).filter((item) => item.confirmed));
+
   protected readonly availableContacts = computed(() => {
     const used = new Set((this.detail()?.participants ?? []).map((participant) => participant.contactId));
     return this.contacts().filter((contact) => !used.has(contact.id));
@@ -114,6 +140,10 @@ export class PersonasGrupo {
     void this.people
       .contacts()
       .then((contacts) => this.contacts.set(contacts))
+      .catch(() => undefined);
+    void this.people
+      .friends()
+      .then((friends) => this.friends.set(friends))
       .catch(() => undefined);
   }
 
@@ -168,14 +198,60 @@ export class PersonasGrupo {
   // --- Personas del grupo ------------------------------------------------------
 
   protected async addParticipant(): Promise<void> {
-    const contact = this.contacts().find((item) => item.id === this.contactChoice);
-    const name = contact ? contact.nickname || contact.name : this.newParticipant.trim();
+    const friend = this.friends().find((item) => item.userId === this.friendChoice);
+    const contact = this.contacts().find((item) => item.id === (friend ? friend.contactId : this.contactChoice));
+    const name = friend ? friendName(friend) : contact ? contact.nickname || contact.name : this.newParticipant.trim();
     if (!name) return;
-    const ok = await this.run(() => this.people.addParticipant(this.id(), { name, contactId: contact?.id ?? null }));
+    // Un contacto enlazado a un amigo entra como amigo, salvo que ese amigo ya esté en el grupo.
+    const friendId =
+      friend?.userId ??
+      (contact?.friendUserId && this.availableFriends().some((item) => item.userId === contact.friendUserId)
+        ? contact.friendUserId
+        : null);
+    const ok = await this.run(() => this.people.addParticipant(this.id(), { name, contactId: contact?.id ?? null, friendId }));
     if (ok) {
       this.newParticipant = '';
       this.contactChoice = '';
+      this.friendChoice = '';
     }
+  }
+
+  protected async linkFriend(): Promise<void> {
+    if (!this.linkParticipantId) return;
+    const friendId = this.linkFriendId || null;
+    const ok = await this.run(
+      () => this.people.linkParticipant(this.id(), this.linkParticipantId, friendId),
+      friendId ? 'Listo: tu amigo ya ve el grupo y lo que debe.' : 'Quitamos el enlace: esa persona ya no ve el grupo.',
+    );
+    if (ok) {
+      this.linkParticipantId = '';
+      this.linkFriendId = '';
+    }
+  }
+
+  protected isFriend(id: string): boolean {
+    return !!this.participantsById().get(id)?.linkedUserId;
+  }
+
+  /** Se puede recordar si es amigo con cuenta y no se le recordó en las últimas 20 horas. */
+  protected canRemind(participant: Participant | undefined): boolean {
+    if (!participant?.linkedUserId) return false;
+    return !participant.remindedAt || Date.now() - new Date(participant.remindedAt).getTime() >= REMINDER_COOLDOWN_MS;
+  }
+
+  protected async remind(participantId: string): Promise<void> {
+    await this.run(
+      () => this.people.remind(this.id(), participantId),
+      `Le recordamos a ${this.name(participantId)}: lo verá al abrir Apaña.`,
+    );
+  }
+
+  protected async confirmSettlement(id: string): Promise<void> {
+    await this.run(() => this.people.confirmSettlement(this.id(), id), 'Confirmamos el pago: ya cuenta en los saldos.');
+  }
+
+  protected async rejectSettlement(id: string): Promise<void> {
+    await this.run(() => this.people.deleteSettlement(this.id(), id), 'Rechazamos el aviso de pago.');
   }
 
   protected async removeParticipant(id: string): Promise<void> {

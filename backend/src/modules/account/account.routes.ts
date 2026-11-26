@@ -9,6 +9,7 @@ import type { ProfileRepository } from '../profile/profile.repository.js';
 import type { FinanceRepository } from '../finance/finance.repository.js';
 import { toJson } from '../finance/finance.routes.js';
 import type { PeopleRepository } from '../people/people.repository.js';
+import type { FriendsRepository } from '../friends/friends.repository.js';
 import type { AccountRepository } from './account.repository.js';
 
 export const DELETE_CONFIRMATION = 'ELIMINAR MI CUENTA';
@@ -22,6 +23,7 @@ export interface AccountRoutesDeps {
   authAdmin: AuthAdmin;
   finance: FinanceRepository;
   people: PeopleRepository;
+  friends: FriendsRepository;
 }
 
 export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (app, deps) => {
@@ -38,6 +40,12 @@ export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (ap
       const activity = await deps.audit.listForUser(user.id, 1000);
       const finance = await deps.finance.exportAll(user.id);
       const people = await deps.people.exportAll(user.id);
+      // De cada amigo solo se exporta el vínculo: su nombre y cumpleaños son datos de esa persona.
+      const friends = (await deps.friends.listFriends(user.id)).map(({ userId, since, contactId }) => ({
+        friendUserId: userId,
+        since,
+        contactId,
+      }));
       await deps.audit.record({ userId: user.id, action: 'account.exported', entityType: 'profile', entityId: user.id });
 
       reply.header('Content-Disposition', 'attachment; filename="apana-mis-datos.json"');
@@ -48,6 +56,7 @@ export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (ap
         profile,
         finance: toJson(finance),
         people: toJson(people),
+        friends,
         activity,
       };
     },

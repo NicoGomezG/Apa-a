@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { birthdaysInMonth, type UpcomingBirthday } from '../../core/calendar/birthdays';
+import { birthdaysInMonth, type BirthdayPerson, type UpcomingBirthday } from '../../core/calendar/birthdays';
 import { holidaysInMonth, nextHoliday, type Holiday } from '../../core/calendar/holidays-cl';
 import { monthGrid, WEEKDAY_LABELS, type GridDay } from '../../core/calendar/month-grid';
 import { formatDay, formatMonth, todayIn } from '../../core/format/format';
@@ -11,7 +11,6 @@ import { MonthPicker } from '../../shared/ui/month-picker';
 import { PageHeader } from '../../shared/ui/page-header';
 import type { CalendarPayment, PaymentStatus } from '../finanzas/finance.models';
 import { FinanceService } from '../finanzas/finance.service';
-import type { Contact } from '../personas/people.models';
 import { PeopleService } from '../personas/people.service';
 
 export const STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -34,7 +33,7 @@ interface Cell extends GridDay {
   red: boolean;
   isToday: boolean;
   payments: CalendarPayment[];
-  birthdays: UpcomingBirthday<Contact>[];
+  birthdays: UpcomingBirthday[];
   ariaLabel: string;
 }
 
@@ -61,7 +60,7 @@ export class Agenda {
   protected readonly payments = signal<CalendarPayment[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
-  protected readonly contacts = signal<Contact[]>([]);
+  protected readonly contacts = signal<BirthdayPerson[]>([]);
   protected readonly birthdays = computed(() => birthdaysInMonth(this.contacts(), this.month()));
   protected readonly birthdayList = computed(() => [...this.birthdays().values()].flat());
 
@@ -133,8 +132,8 @@ export class Agenda {
       void this.load(this.month());
     });
     void this.people
-      .contacts()
-      .then((contacts) => this.contacts.set(contacts))
+      .birthdayPeople()
+      .then((people) => this.contacts.set(people))
       .catch(() => undefined);
   }
 

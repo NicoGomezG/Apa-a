@@ -6,12 +6,14 @@ import { MoneyPipe } from '../../core/format/money.pipe';
 import { apiErrorMessage } from '../../core/http-errors';
 import { ProfileService } from '../../core/profile/profile.service';
 import { EmptyState } from '../../shared/ui/empty-state';
-import type { Contact, GroupSummary } from './people.models';
+import { friendName } from './friends';
+import type { Contact, Friend, GroupSummary, SharedGroupSummary } from './people.models';
 import { PeopleService } from './people.service';
 
 interface PendingParticipant {
   name: string;
   contactId: string | null;
+  friendId: string | null;
 }
 
 @Component({
@@ -60,7 +62,9 @@ export class PersonasGastos {
   protected readonly formatDay = formatDay;
 
   protected readonly groups = signal<GroupSummary[]>([]);
+  protected readonly shared = signal<SharedGroupSummary[]>([]);
   protected readonly contacts = signal<Contact[]>([]);
+  protected readonly friends = signal<Friend[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
   protected readonly formOpen = signal(false);
@@ -70,7 +74,15 @@ export class PersonasGastos {
   protected date = todayIn(this.profile.timezone());
   protected newName = '';
   protected contactChoice = '';
+  protected friendChoice = '';
   protected readonly pending = signal<PendingParticipant[]>([]);
+  protected readonly friendName = friendName;
+
+  /** Amigos que aún no están en la lista del grupo nuevo. */
+  protected readonly availableFriends = computed(() => {
+    const chosen = new Set(this.pending().map((item) => item.friendId));
+    return this.friends().filter((friend) => !chosen.has(friend.userId));
+  });
 
   /** Contactos que aún no están en la lista del grupo nuevo. */
   protected readonly availableContacts = computed(() => {
@@ -84,9 +96,16 @@ export class PersonasGastos {
 
   private async load(): Promise<void> {
     try {
-      const [groups, contacts] = await Promise.all([this.people.groups(), this.people.contacts()]);
+      const [groups, contacts, shared, friends] = await Promise.all([
+        this.people.groups(),
+        this.people.contacts(),
+        this.people.sharedGroups().catch(() => []),
+        this.people.friends().catch(() => []),
+      ]);
       this.groups.set(groups);
       this.contacts.set(contacts);
+      this.shared.set(shared);
+      this.friends.set(friends);
     } catch (error) {
       this.error.set(apiErrorMessage(error, 'No pudimos cargar tus grupos.'));
     } finally {
@@ -110,14 +129,27 @@ export class PersonasGastos {
   protected addContact(): void {
     const contact = this.contacts().find((item) => item.id === this.contactChoice);
     if (!contact) return;
-    this.pending.update((list) => [...list, { name: contact.nickname || contact.name, contactId: contact.id }]);
+    // Si el contacto está enlazado a un amigo, entra como amigo (verá el grupo).
+    const friendId = contact.friendUserId && this.availableFriends().some((f) => f.userId === contact.friendUserId) ? contact.friendUserId : null;
+    this.pending.update((list) => [...list, { name: contact.nickname || contact.name, contactId: contact.id, friendId }]);
     this.contactChoice = '';
+  }
+
+  protected addFriend(): void {
+    const friend = this.friends().find((item) => item.userId === this.friendChoice);
+    if (!friend) return;
+    this.pending.update((list) => [...list, { name: friendName(friend), contactId: friend.contactId, friendId: friend.userId }]);
+    this.friendChoice = '';
+  }
+
+  protected sharedBalance(group: SharedGroupSummary): bigint {
+    return BigInt(group.myBalance);
   }
 
   protected addName(): void {
     const name = this.newName.trim();
     if (!name) return;
-    this.pending.update((list) => [...list, { name, contactId: null }]);
+    this.pending.update((list) => [...list, { name, contactId: null, friendId: null }]);
     this.newName = '';
   }
 

@@ -40,6 +40,10 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
   del cliente. Cada endpoint nuevo lleva una prueba de que el usuario B no ve lo del A.
 - Única excepción sin sesión: `GET /api/public/splits/:token` (enlace de invitados, código de
   192 bits, revocable, sin datos de contacto). Cualquier ruta pública nueva necesita el mismo cuidado.
+- Única excepción al filtro por dueño: `/api/people/shared/*` (grupos de otro donde el dueño te
+  enlazó como amigo). Filtra por `split_participants.linked_user_id = currentUser`, nunca expone
+  `contactId`, `shareToken` ni ids de cuenta, y solo deja informar pagos propios (`confirmed=false`).
+- Amigos: solo ven nombre y cumpleaños (día y mes) del otro. Nunca correo, año ni otros módulos.
 - Dinero: `BigInt` en unidad mínima + `currency`. Nunca `Float`/`number` con decimales.
 - Fechas: `timestamptz` para instantes, `date` para días; zona por defecto `America/Santiago`.
 - La bitácora (`AuditRepository.record`) guarda acciones e identificadores, **nunca** valores
@@ -67,7 +71,7 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 | Finanzas: cuentas, movimientos, cuotas, estados de cuenta, suscripciones (correo + notas), resumen, importación BCh/CMR/Santander | ✅ | `modules/finance`, `features/finanzas` |
 | Agenda: calendario, feriados CL, pagos del mes con estado pagado/por pagar/sin confirmar, cumpleaños | ✅ | `features/agenda`, `core/calendar`, `GET /finance/calendar` |
 | Personas: contactos + cumpleaños, gastos compartidos (iguales / montos / ítems de boleta, propina 10 %), saldos, pagos, enlace invitados | ✅ (sin probar en navegador) | `modules/people`, `features/personas`, `features/public` |
-| Personas etapa 3: amigos con cuenta en Apaña (invitación por enlace), grupos compartidos | ⏳ | — |
+| Personas etapa 3: amigos (invitación por enlace), cumpleaños propio, grupos compartidos con amigos (ven, informan pagos, el dueño confirma, recordatorio) | ✅ (sin probar en navegador) | `modules/friends`, `people.shared.routes.ts`, `features/personas/amigos.ts`, `compartido-conmigo.ts`, `unirse.ts` |
 | Compras, Vehículos, Salud | ⏳ | `layout/navigation.ts` → `UPCOMING_MODULES` |
 
 ## Mapa del código (lo que no es obvio)
@@ -84,6 +88,13 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
   regionales ni de elecciones.
 - Esquemas Zod compartidos (dinero, día, texto, correo): `backend/src/lib/schemas.ts`.
 - Lista base de tarjetas/cuentas (CMR, Santander, MACH…): `ACCOUNT_PRESETS` en `finance.models.ts`.
+- Amistades: una fila por par con `user_a_id < user_b_id` (`orderedPair`, con CHECK en la base).
+  Terminar la amistad o borrar la cuenta deshace `linked_user_id` y `friend_user_id` en ambos sentidos.
+- Pagos informados por amigos: `split_settlements.confirmed=false`; `groupView` los excluye de saldos
+  y el enlace público no los muestra. Recordatorio = `split_participants.reminded_at` (1 cada 20 h).
+- Cumpleaños de Agenda/Inicio: `PeopleService.birthdayPeople()` junta contactos + amigos sin duplicar
+  (`features/personas/friends.ts`). Validación compartida del cumpleaños: `backend/src/lib/birthday.ts`.
+- Destino tras registrarse/Google: `core/auth/pending-redirect.ts` (localStorage), lo usa `auth-callback`.
 
 ## Trampas conocidas
 
@@ -97,18 +108,24 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 - La API exige `SUPABASE_SECRET_KEY` cuando `NODE_ENV=production`: sin ella la función se cae al
   arrancar (`FUNCTION_INVOCATION_FAILED` hasta en `/api/health`).
 - El `tsconfig` del backend excluye `*.test.ts`: el typecheck no revisa las pruebas (vitest sí).
+- `prisma migrate diff --from-config-datasource` compara con la base real (que puede ir atrasada).
+  Para generar solo lo nuevo: copiar el schema antes de editarlo y usar `--from-schema <copia>`.
+- npm 11 bloquea scripts de instalación: tras `npm ci` en `backend`, correr `npx prisma generate`.
 
 ## Pendientes
 
-- Aplicar migraciones `20261125120000_subscription_details` y `20261126000000_people`, luego push.
-- Commit de Personas (aún sin commitear al escribir esto).
-- Probar en navegador: importación (worker de pdf.js), Agenda, Personas y el enlace público.
+- Aplicar migraciones `20261125120000_subscription_details`, `20261126000000_people` y
+  `20261127000000_friends`, luego push.
+- Probar en navegador: importación (worker de pdf.js), Agenda, Personas, el enlace público y
+  amigos (invitar → aceptar con otra cuenta, incluido registro nuevo desde el enlace).
+- Recordatorios solo dentro de la app: falta aviso por correo/push.
 - `SUPABASE_SECRET_KEY` vacía en `backend/.env` (sin ella no funciona eliminar cuenta; obligatoria en producción).
 - Ideas acordadas para después: marcar pagos como "revisado" a mano, foto de boleta con IA,
   propina con porcentaje elegible.
 
 ## Historial (más reciente arriba, una línea por cambio)
 
+- 2026-11-25 · Amigos: invitación por enlace, cumpleaños propio compartido, grupos compartidos con pagos por confirmar y recordatorio.
 - 2026-11-26 · Personas: contactos/cumpleaños, gastos compartidos estilo Tricount, enlace invitados.
 - 2026-11-25 · Suscripciones con correo y notas; lista base de tarjetas; fix variables `.env` vacías.
 - 2026-11-25 · Agenda: calendario con feriados CL y pagos del mes cruzados con movimientos.

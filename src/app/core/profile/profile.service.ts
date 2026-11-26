@@ -14,6 +14,9 @@ export interface Me {
   id: string;
   email: string | null;
   displayName: string | null;
+  birthDay: number | null;
+  birthMonth: number | null;
+  birthYear: number | null;
   createdAt: string;
   preferences: Preferences;
 }
@@ -37,8 +40,10 @@ export class ProfileService {
     return me;
   }
 
-  async updateDisplayName(displayName: string): Promise<Me> {
-    const me = await firstValueFrom(this.http.patch<Me>(`${this.api}/me`, { displayName }));
+  async updateProfile(
+    changes: Partial<Pick<Me, 'displayName' | 'birthDay' | 'birthMonth' | 'birthYear'>>,
+  ): Promise<Me> {
+    const me = await firstValueFrom(this.http.patch<Me>(`${this.api}/me`, changes));
     this.meState.set(me);
     return me;
   }

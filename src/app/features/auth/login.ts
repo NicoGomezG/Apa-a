@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment.generated';
 import { safeRedirect } from '../../core/auth/auth.guards';
+import { rememberRedirect } from '../../core/auth/pending-redirect';
 import { AuthService } from '../../core/auth/auth.service';
 
 @Component({
@@ -53,7 +54,7 @@ import { AuthService } from '../../core/auth/auth.service';
           }
         </section>
 
-        <p class="text-center mt-3">¿No tienes cuenta? <a routerLink="/auth/registro">Créala gratis</a></p>
+        <p class="text-center mt-3">¿No tienes cuenta? <a routerLink="/auth/registro" [queryParams]="volver() ? { volver: volver() } : {}">Créala gratis</a></p>
       </div>
     </main>
   `,
@@ -88,6 +89,7 @@ export class Login {
   }
 
   protected async google(): Promise<void> {
+    rememberRedirect(this.volver());
     this.loading.set(true);
     const result = await this.auth.signInWithGoogle();
     if (!result.ok) {

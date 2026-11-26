@@ -11,7 +11,7 @@ import type {
   TransactionRecord,
 } from '../modules/finance/finance.types.js';
 import type { Preferences, ProfileRecord } from '../modules/profile/profile.repository.js';
-import { createFakePeople } from './fake-people.js';
+import { createFakeFriends, createFakePeople } from './fake-people.js';
 
 export const testEnv: Env = {
   NODE_ENV: 'test',
@@ -211,6 +211,7 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
   const finance = createFakeFinance();
   const people = createFakePeople();
   const profiles = new Map<string, ProfileRecord>();
+  const friends = createFakeFriends(people, profiles);
   const auditLog: AuditEntry[] = [];
   const deletedAuthUsers: string[] = [];
   let failAuthDelete = false;
@@ -237,14 +238,17 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
         const profile: ProfileRecord = {
           id: userId,
           displayName,
+          birthDay: null,
+          birthMonth: null,
+          birthYear: null,
           createdAt: new Date('2026-10-18T12:00:00Z'),
           preferences: { timezone: 'America/Santiago', locale: 'es-CL', currency: 'CLP' },
         };
         profiles.set(userId, profile);
         return { profile, created: true };
       },
-      async updateDisplayName(userId, displayName) {
-        const profile = { ...profiles.get(userId)!, displayName };
+      async update(userId, changes) {
+        const profile = { ...profiles.get(userId)!, ...changes };
         profiles.set(userId, profile);
         return profile;
       },
@@ -271,11 +275,13 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
       async deleteAllData(userId) {
         profiles.delete(userId);
         finance.clearUser(userId);
+        friends.clearUser(userId);
         people.clearUser(userId);
       },
     },
     finance: finance.repo,
     people: people.repo,
+    friends: friends.repo,
     now,
   };
 
@@ -283,6 +289,7 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
     deps,
     finance,
     people,
+    friends,
     profiles,
     auditLog,
     deletedAuthUsers,

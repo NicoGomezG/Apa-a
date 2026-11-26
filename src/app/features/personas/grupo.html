@@ -235,6 +235,23 @@
         <h3 id="quien-debe" class="apana-section-title">
           <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>¿Quién le debe a quién?
         </h3>
+        @if (pendingSettlements().length > 0) {
+          <div class="pending mb-3" role="region" aria-label="Pagos por confirmar">
+            <p class="fw-semibold mb-2"><i class="fa-solid fa-hourglass-half me-1" aria-hidden="true"></i>Pagos por confirmar</p>
+            <ul class="list-unstyled d-grid gap-2 mb-0">
+              @for (settlement of pendingSettlements(); track settlement.id) {
+                <li class="d-flex flex-wrap align-items-center gap-2">
+                  <span class="flex-grow-1">
+                    {{ name(settlement.fromId) }} avisa que le pagó <strong>{{ settlement.amount | money: currency() }}</strong>
+                    a {{ name(settlement.toId) }} · {{ formatDay(settlement.date) }}
+                  </span>
+                  <button type="button" class="btn btn-sm btn-primary" (click)="confirmSettlement(settlement.id)" [disabled]="busy()">Confirmar</button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="rejectSettlement(settlement.id)" [disabled]="busy()">Rechazar</button>
+                </li>
+              }
+            </ul>
+          </div>
+        }
         @if (d.expenses.length === 0) {
           <p class="mb-0">Agrega el primer gasto y aquí verás cuánto debe cada uno.</p>
         } @else if (d.transfers.length === 0) {
@@ -247,6 +264,16 @@
                   <strong>{{ name(transfer.fromId) }}</strong> le paga a <strong>{{ name(transfer.toId) }}</strong>
                 </span>
                 <span class="fw-bold text-nowrap">{{ transfer.amount | money: currency() }}</span>
+                @let debtor = participantsById().get(transfer.fromId);
+                @if (debtor?.linkedUserId) {
+                  @if (canRemind(debtor)) {
+                    <button type="button" class="btn btn-sm btn-outline-primary" (click)="remind(transfer.fromId)" [disabled]="busy()">
+                      <i class="fa-solid fa-bell me-1" aria-hidden="true"></i>Recordar
+                    </button>
+                  } @else {
+                    <span class="small"><i class="fa-solid fa-bell me-1" aria-hidden="true"></i>Recordado</span>
+                  }
+                }
                 <button type="button" class="btn btn-sm btn-outline-primary" (click)="settle(transfer)" [disabled]="busy()">
                   Registrar pago
                 </button>
@@ -295,6 +322,9 @@
         <ul class="list-unstyled d-flex flex-wrap gap-2 mb-3">
           @for (participant of d.participants; track participant.id) {
             <li class="chip">
+              @if (participant.linkedUserId) {
+                <i class="fa-solid fa-handshake section-icon" aria-hidden="true" title="Amigo en Apaña: ve el grupo"></i>
+              }
               {{ name(participant.id) }}
               @if (!participant.isMe) {
                 <button type="button" (click)="removeParticipant(participant.id)" [disabled]="busy()" [attr.aria-label]="'Quitar a ' + participant.name">
@@ -305,9 +335,18 @@
           }
         </ul>
         <form class="d-grid gap-2" (ngSubmit)="addParticipant()">
+          @if (availableFriends().length > 0) {
+            <label class="visually-hidden" for="pFriend">Agregar a un amigo de Apaña</label>
+            <select id="pFriend" name="friend" class="form-select form-select-sm" [(ngModel)]="friendChoice" [disabled]="!!contactChoice">
+              <option value="">Elegir a un amigo de Apaña…</option>
+              @for (friend of availableFriends(); track friend.userId) {
+                <option [value]="friend.userId">{{ friendName(friend) }}</option>
+              }
+            </select>
+          }
           @if (availableContacts().length > 0) {
             <label class="visually-hidden" for="pContact">Agregar desde tus contactos</label>
-            <select id="pContact" name="contact" class="form-select form-select-sm" [(ngModel)]="contactChoice">
+            <select id="pContact" name="contact" class="form-select form-select-sm" [(ngModel)]="contactChoice" [disabled]="!!friendChoice">
               <option value="">Elegir de tus contactos…</option>
               @for (contact of availableContacts(); track contact.id) {
                 <option [value]="contact.id">{{ contact.name }}</option>
@@ -316,10 +355,36 @@
           }
           <div class="input-group input-group-sm">
             <label class="visually-hidden" for="pName">Nombre</label>
-            <input id="pName" name="newParticipant" class="form-control" maxlength="80" placeholder="O escribe un nombre" [(ngModel)]="newParticipant" [disabled]="!!contactChoice" />
-            <button type="submit" class="btn btn-outline-primary" [disabled]="busy() || (!contactChoice && !newParticipant.trim())">Agregar</button>
+            <input id="pName" name="newParticipant" class="form-control" maxlength="80" placeholder="O escribe un nombre" [(ngModel)]="newParticipant" [disabled]="!!contactChoice || !!friendChoice" />
+            <button type="submit" class="btn btn-outline-primary" [disabled]="busy() || (!contactChoice && !friendChoice && !newParticipant.trim())">Agregar</button>
           </div>
         </form>
+
+        @if (friends().length > 0 && linkable().length > 0) {
+          <form class="mt-3" (ngSubmit)="linkFriend()">
+            <span class="form-label d-block small fw-semibold mb-1">Enlazar con un amigo de Apaña</span>
+            <p class="small mb-2">Así ve el grupo, lo que debe y puede avisarte cuando te pague.</p>
+            <div class="d-grid gap-2">
+              <label class="visually-hidden" for="lPerson">Persona del grupo</label>
+              <select id="lPerson" name="linkParticipant" class="form-select form-select-sm" [(ngModel)]="linkParticipantId">
+                <option value="">Persona del grupo…</option>
+                @for (participant of linkable(); track participant.id) {
+                  <option [value]="participant.id">{{ participant.name }}@if (participant.linkedUserId) { (enlazada)}</option>
+                }
+              </select>
+              <div class="input-group input-group-sm">
+                <label class="visually-hidden" for="lFriend">Amigo</label>
+                <select id="lFriend" name="linkFriend" class="form-select" [(ngModel)]="linkFriendId">
+                  <option value="">Ninguno (quitar enlace)</option>
+                  @for (friend of availableFriends(); track friend.userId) {
+                    <option [value]="friend.userId">{{ friendName(friend) }}</option>
+                  }
+                </select>
+                <button type="submit" class="btn btn-outline-primary" [disabled]="busy() || !linkParticipantId">Guardar</button>
+              </div>
+            </div>
+          </form>
+        }
       </section>
 
       <section class="apana-card" aria-labelledby="enlace-grupo">
@@ -416,10 +481,10 @@
       </ul>
     }
 
-    @if (d.settlements.length > 0) {
+    @if (confirmedSettlements().length > 0) {
       <h4 class="h6 fw-bold mt-3">Pagos registrados</h4>
       <ul class="list-unstyled mb-0 d-grid gap-2">
-        @for (settlement of d.settlements; track settlement.id) {
+        @for (settlement of confirmedSettlements(); track settlement.id) {
           <li class="d-flex flex-wrap align-items-center gap-2">
             <i class="fa-solid fa-money-bill-transfer section-icon" aria-hidden="true"></i>
             <span class="flex-grow-1">

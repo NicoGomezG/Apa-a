@@ -17,10 +17,12 @@ export interface ContactRecord {
   email: string | null;
   relationship: Relationship | null;
   notes: string | null;
+  /** Amigo de Apaña enlazado a este contacto (se cambia desde Amigos, no desde el contacto). */
+  friendUserId: string | null;
   createdAt: Date;
 }
 
-export type ContactInput = Omit<ContactRecord, 'id' | 'createdAt'>;
+export type ContactInput = Omit<ContactRecord, 'id' | 'createdAt' | 'friendUserId'>;
 
 export interface GroupRecord {
   id: string;
@@ -39,10 +41,14 @@ export interface ParticipantRecord {
   name: string;
   contactId: string | null;
   isMe: boolean;
+  /** Amigo con cuenta que ve el grupo e informa pagos. */
+  linkedUserId: string | null;
+  remindedAt: Date | null;
   position: number;
 }
 
-export type ParticipantInput = Pick<ParticipantRecord, 'name' | 'contactId' | 'isMe'>;
+export type ParticipantInput = Pick<ParticipantRecord, 'name' | 'contactId' | 'isMe' | 'linkedUserId'>;
+export type ParticipantChanges = Partial<Pick<ParticipantRecord, 'name' | 'contactId' | 'linkedUserId' | 'remindedAt'>>;
 
 export interface ItemRecord {
   description: string;
@@ -83,14 +89,24 @@ export interface SettlementRecord {
   toId: string;
   amount: bigint;
   date: string;
+  /** false = lo informó un amigo y el dueño aún no lo confirma (no cuenta en los saldos). */
+  confirmed: boolean;
+  /** Amigo que lo informó; null si lo registró el dueño. */
+  reportedBy: string | null;
   createdAt: Date;
 }
 
-export type SettlementInput = Pick<SettlementRecord, 'fromId' | 'toId' | 'amount' | 'date'>;
+export type SettlementInput = Pick<SettlementRecord, 'fromId' | 'toId' | 'amount' | 'date' | 'confirmed' | 'reportedBy'>;
 
 export interface GroupDetail {
   group: GroupRecord;
   participants: ParticipantRecord[];
   expenses: ExpenseRecord[];
   settlements: SettlementRecord[];
+}
+
+/** Grupo de otra persona en el que participas como amigo. */
+export interface SharedGroup {
+  ownerId: string;
+  detail: GroupDetail;
 }

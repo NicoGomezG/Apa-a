@@ -9,21 +9,29 @@ export interface Preferences {
 export interface ProfileRecord {
   id: string;
   displayName: string | null;
+  birthDay: number | null;
+  birthMonth: number | null;
+  birthYear: number | null;
   createdAt: Date;
   preferences: Preferences;
 }
+
+export type ProfileChanges = Pick<ProfileRecord, 'displayName' | 'birthDay' | 'birthMonth' | 'birthYear'>;
 
 export interface ProfileRepository {
   find(userId: string): Promise<ProfileRecord | null>;
   /** Crea el perfil y sus preferencias por defecto. Idempotente ante carreras. */
   create(userId: string, displayName: string | null): Promise<{ profile: ProfileRecord; created: boolean }>;
-  updateDisplayName(userId: string, displayName: string | null): Promise<ProfileRecord>;
+  update(userId: string, changes: Partial<ProfileChanges>): Promise<ProfileRecord>;
   updatePreferences(userId: string, changes: Partial<Preferences>): Promise<ProfileRecord>;
 }
 
 const profileSelect = {
   id: true,
   displayName: true,
+  birthDay: true,
+  birthMonth: true,
+  birthYear: true,
   createdAt: true,
   preferences: { select: { timezone: true, locale: true, currency: true } },
 } as const;
@@ -31,6 +39,9 @@ const profileSelect = {
 type SelectedProfile = {
   id: string;
   displayName: string | null;
+  birthDay: number | null;
+  birthMonth: number | null;
+  birthYear: number | null;
   createdAt: Date;
   preferences: Preferences | null;
 };
@@ -63,10 +74,10 @@ export function createPrismaProfileRepository(prisma: PrismaClient): ProfileRepo
       return { profile: toRecord(row), created: result };
     },
 
-    async updateDisplayName(userId, displayName) {
+    async update(userId, changes) {
       const row = await prisma.profile.update({
         where: { id: userId },
-        data: { displayName },
+        data: changes,
         select: profileSelect,
       });
       return toRecord(row);

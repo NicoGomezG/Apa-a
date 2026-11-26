@@ -20,6 +20,13 @@ export function createPrismaAccountRepository(prisma: PrismaClient): AccountRepo
         prisma.installmentPlan.deleteMany({ where: { userId } }),
         prisma.cardStatement.deleteMany({ where: { userId } }),
         prisma.financialAccount.deleteMany({ where: { userId } }),
+        // Amigos: invitaciones, amistades y todo enlace que otras personas tengan hacia esta cuenta.
+        prisma.friendInvite.deleteMany({ where: { userId } }),
+        prisma.friendship.deleteMany({ where: { OR: [{ userAId: userId }, { userBId: userId }] } }),
+        prisma.contact.updateMany({ where: { friendUserId: userId }, data: { friendUserId: null } }),
+        prisma.splitParticipant.updateMany({ where: { linkedUserId: userId }, data: { linkedUserId: null, remindedAt: null } }),
+        prisma.splitSettlement.deleteMany({ where: { reportedBy: userId, confirmed: false } }),
+        prisma.splitSettlement.updateMany({ where: { reportedBy: userId }, data: { reportedBy: null } }),
         // Personas: participantes, gastos, ítems, repartos y pagos caen con su grupo.
         prisma.splitGroup.deleteMany({ where: { userId } }),
         prisma.contact.deleteMany({ where: { userId } }),

@@ -1,6 +1,7 @@
 import { Component, inject, signal, type OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { takeRedirect } from '../../core/auth/pending-redirect';
 
 /** Retorno desde Google o desde el correo de confirmación (flujo PKCE). */
 @Component({
@@ -32,7 +33,7 @@ export class AuthCallback implements OnInit {
   async ngOnInit(): Promise<void> {
     await this.auth.ready;
     if (this.auth.isAuthenticated()) {
-      await this.router.navigateByUrl('/', { replaceUrl: true });
+      await this.router.navigateByUrl(takeRedirect(), { replaceUrl: true });
     } else {
       this.failed.set(true);
     }

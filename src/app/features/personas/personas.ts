@@ -5,6 +5,7 @@ import { PageHeader } from '../../shared/ui/page-header';
 const TABS = [
   { path: 'contactos', label: 'Contactos', icon: 'fa-address-book' },
   { path: 'gastos', label: 'Gastos compartidos', icon: 'fa-receipt' },
+  { path: 'amigos', label: 'Amigos', icon: 'fa-handshake' },
 ];
 
 @Component({
@@ -16,7 +17,7 @@ const TABS = [
       title="Personas"
       icon="fa-user-group"
       module="personas"
-      subtitle="Tus contactos, sus cumpleaños y los gastos que compartes."
+      subtitle="Tus contactos, tus amigos en Apaña, sus cumpleaños y los gastos que compartes."
     />
     <nav class="section-tabs mb-4" aria-label="Secciones de Personas">
       @for (tab of tabs; track tab.path) {

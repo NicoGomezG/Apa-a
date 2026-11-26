@@ -6,7 +6,6 @@ import { formatDay, formatLongDate, greetingFor, todayIn } from '../../core/form
 import { MoneyPipe } from '../../core/format/money.pipe';
 import type { UpcomingPayment } from '../finanzas/finance.models';
 import { FinanceService } from '../finanzas/finance.service';
-import type { Contact } from '../personas/people.models';
 import { PeopleService } from '../personas/people.service';
 import { ProfileService } from '../../core/profile/profile.service';
 import { EmptyState } from '../../shared/ui/empty-state';
@@ -77,7 +76,7 @@ export class Dashboard {
   protected readonly daysUntilLabel = daysUntilLabel;
 
   /** Cumpleaños reales de los próximos 30 días. */
-  protected readonly birthdays = signal<UpcomingBirthday<Contact>[]>([]);
+  protected readonly birthdays = signal<UpcomingBirthday[]>([]);
   protected readonly sections = SECTIONS;
   protected readonly formatDay = formatDay;
 
@@ -90,8 +89,8 @@ export class Dashboard {
       .then((summary) => this.upcomingPayments.set(summary.upcoming.slice(0, 5)))
       .catch(() => this.upcomingPayments.set([]));
     this.people
-      .contacts()
-      .then((contacts) => this.birthdays.set(upcomingBirthdays(contacts, todayIn(this.profile.timezone(), this.now), 30).slice(0, 5)))
+      .birthdayPeople()
+      .then((people) => this.birthdays.set(upcomingBirthdays(people, todayIn(this.profile.timezone(), this.now), 30).slice(0, 5)))
       .catch(() => this.birthdays.set([]));
   }
 

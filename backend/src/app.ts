@@ -12,8 +12,11 @@ import { accountRoutes } from './modules/account/account.routes.js';
 import type { AuditRepository } from './modules/audit/audit.repository.js';
 import type { FinanceRepository } from './modules/finance/finance.repository.js';
 import { financeRoutes } from './modules/finance/finance.routes.js';
+import type { FriendsRepository } from './modules/friends/friends.repository.js';
+import { friendsRoutes } from './modules/friends/friends.routes.js';
 import type { PeopleRepository } from './modules/people/people.repository.js';
 import { peopleRoutes, publicSplitRoutes } from './modules/people/people.routes.js';
+import { sharedGroupRoutes } from './modules/people/people.shared.routes.js';
 import type { ProfileRepository } from './modules/profile/profile.repository.js';
 import { profileRoutes } from './modules/profile/profile.routes.js';
 import { authPlugin } from './plugins/auth.js';
@@ -26,6 +29,7 @@ export interface AppDeps {
   account: AccountRepository;
   finance: FinanceRepository;
   people: PeopleRepository;
+  friends: FriendsRepository;
   /** Reloj inyectable (pruebas). Por defecto, la hora real. */
   now?: () => Date;
 }
@@ -74,6 +78,8 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
       await api.register(accountRoutes, deps);
       await api.register(financeRoutes, { ...deps, prefix: '/finance' });
       await api.register(peopleRoutes, { ...deps, prefix: '/people' });
+      await api.register(sharedGroupRoutes, { ...deps, prefix: '/people/shared' });
+      await api.register(friendsRoutes, { ...deps, prefix: '/friends' });
       // Sin sesión: enlaces de solo lectura para invitados.
       await api.register(publicSplitRoutes, { people: deps.people, prefix: '/public' });
     },

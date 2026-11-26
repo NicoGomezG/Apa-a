@@ -116,7 +116,23 @@ export const routes: Routes = [
             title: 'Grupo · Gastos compartidos · Apaña',
             loadComponent: () => import('./features/personas/grupo').then((m) => m.PersonasGrupo),
           },
+          {
+            path: 'compartidos/:id',
+            title: 'Grupo compartido contigo · Apaña',
+            loadComponent: () => import('./features/personas/compartido-conmigo').then((m) => m.PersonasCompartidoConmigo),
+          },
+          {
+            path: 'amigos',
+            title: 'Amigos · Personas · Apaña',
+            loadComponent: () => import('./features/personas/amigos').then((m) => m.PersonasAmigos),
+          },
         ],
+      },
+      {
+        // Enlace de invitación de amistad. Sin sesión, el guard lleva a ingresar y vuelve acá.
+        path: 'amigos/unirse/:code',
+        title: 'Invitación de amistad · Apaña',
+        loadComponent: () => import('./features/personas/unirse').then((m) => m.PersonasUnirse),
       },
       upcoming('compras', 'Compras'),
       upcoming('vehiculos', 'Vehículos'),

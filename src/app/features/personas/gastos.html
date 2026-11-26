@@ -32,7 +32,8 @@
           <span class="chip">Tú</span>
           @for (person of pending(); track $index) {
             <span class="chip">
-              @if (person.contactId) { <i class="fa-solid fa-address-book" aria-hidden="true"></i> }
+              @if (person.friendId) { <i class="fa-solid fa-handshake" aria-hidden="true" title="Amigo en Apaña"></i> }
+              @else if (person.contactId) { <i class="fa-solid fa-address-book" aria-hidden="true"></i> }
               {{ person.name }}
               <button type="button" (click)="removePending($index)" [attr.aria-label]="'Quitar a ' + person.name">
                 <i class="fa-solid fa-xmark" aria-hidden="true"></i>
@@ -41,6 +42,20 @@
           }
         </div>
         <div class="row g-2">
+          @if (availableFriends().length > 0) {
+            <div class="col-12 col-md-6">
+              <label class="visually-hidden" for="gFriend">Agregar a un amigo de Apaña</label>
+              <div class="input-group">
+                <select id="gFriend" name="friend" class="form-select" [(ngModel)]="friendChoice">
+                  <option value="">Elegir a un amigo de Apaña…</option>
+                  @for (friend of availableFriends(); track friend.userId) {
+                    <option [value]="friend.userId">{{ friendName(friend) }}</option>
+                  }
+                </select>
+                <button type="button" class="btn btn-outline-primary" (click)="addFriend()" [disabled]="!friendChoice">Agregar</button>
+              </div>
+            </div>
+          }
           @if (availableContacts().length > 0) {
             <div class="col-12 col-md-6">
               <label class="visually-hidden" for="gContact">Agregar desde tus contactos</label>
@@ -72,7 +87,7 @@
             </div>
           </div>
         </div>
-        <div class="form-text">No necesitan estar en Apaña: basta con el nombre.</div>
+        <div class="form-text">No necesitan estar en Apaña: basta con el nombre. Tus amigos de Apaña verán el grupo y podrán avisarte cuando te paguen.</div>
       </div>
 
       <div class="col-12 d-flex gap-2">
@@ -83,9 +98,55 @@
   </section>
 }
 
+@if (shared().length > 0) {
+  <section class="mb-4" aria-labelledby="compartidos-contigo">
+    <h2 id="compartidos-contigo" class="h6 fw-bold mb-2">Compartidos contigo</h2>
+    <div class="row g-3">
+      @for (group of shared(); track group.id) {
+        @let balance = sharedBalance(group);
+        <div class="col-12 col-md-6 col-xl-4">
+          <a class="apana-card group-card h-100" [routerLink]="['/personas/compartidos', group.id]">
+            <div class="d-flex justify-content-between gap-2">
+              <h3 class="h6 fw-bold mb-1 text-truncate">{{ group.name }}</h3>
+              @if (group.remindedAt && sign(balance) < 0) {
+                <span class="badge text-bg-warning" title="Te recordaron este pago"><i class="fa-solid fa-bell" aria-hidden="true"></i><span class="visually-hidden">Te recordaron pagar</span></span>
+              }
+            </div>
+            <div class="small mb-2">
+              De {{ group.ownerName || 'un amigo' }}
+              @if (group.date) { · {{ formatDay(group.date, true) }} }
+              @if (group.pendingReports > 0) { · {{ group.pendingReports }} por confirmar }
+            </div>
+            <div class="d-flex justify-content-between align-items-end gap-2">
+              <div>
+                <div class="small">Total</div>
+                <div class="fw-bold">{{ group.totalSpent | money: group.currency }}</div>
+              </div>
+              <div class="text-end">
+                @if (sign(balance) > 0) {
+                  <div class="small">Te deben</div>
+                  <div class="fw-bold positive">{{ balance | money: group.currency }}</div>
+                } @else if (sign(balance) < 0) {
+                  <div class="small">Debes</div>
+                  <div class="fw-bold negative">{{ abs(balance) | money: group.currency }}</div>
+                } @else {
+                  <div class="fw-semibold positive"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>Al día</div>
+                }
+              </div>
+            </div>
+          </a>
+        </div>
+      }
+    </div>
+  </section>
+  @if (groups().length > 0) {
+    <h2 class="h6 fw-bold mb-2">Tus grupos</h2>
+  }
+}
+
 @if (loading()) {
   <p role="status">Cargando…</p>
-} @else if (groups().length === 0 && !formOpen()) {
+} @else if (groups().length === 0 && !formOpen() && shared().length === 0) {
   <section class="apana-card">
     <app-empty-state
       icon="fa-receipt"
@@ -101,9 +162,14 @@
         <a class="apana-card group-card h-100" [routerLink]="['/personas/gastos', group.id]">
           <div class="d-flex justify-content-between gap-2">
             <h2 class="h6 fw-bold mb-1 text-truncate">{{ group.name }}</h2>
-            @if (group.shared) {
-              <span class="badge text-bg-light border" title="Tiene enlace para invitados"><i class="fa-solid fa-link" aria-hidden="true"></i><span class="visually-hidden">Compartido</span></span>
-            }
+            <span class="d-flex gap-1">
+              @if (group.pendingPayments > 0) {
+                <span class="badge text-bg-warning" title="Pagos por confirmar">{{ group.pendingPayments }}<span class="visually-hidden"> pagos por confirmar</span></span>
+              }
+              @if (group.shared) {
+                <span class="badge text-bg-light border" title="Tiene enlace para invitados"><i class="fa-solid fa-link" aria-hidden="true"></i><span class="visually-hidden">Compartido</span></span>
+              }
+            </span>
           </div>
           <div class="small mb-2">
             @if (group.date) { {{ formatDay(group.date, true) }} · }

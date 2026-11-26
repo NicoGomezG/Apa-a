@@ -22,9 +22,11 @@ export interface Contact {
   email: string | null;
   relationship: Relationship | null;
   notes: string | null;
+  /** Amigo de Apaña enlazado (se cambia desde Amigos). */
+  friendUserId: string | null;
 }
 
-export type ContactPayload = Omit<Contact, 'id'>;
+export type ContactPayload = Omit<Contact, 'id' | 'friendUserId'>;
 
 export type SplitMode = 'equal' | 'exact' | 'items';
 
@@ -40,6 +42,9 @@ export interface Participant {
   name: string;
   contactId: string | null;
   isMe: boolean;
+  /** Amigo con cuenta que ve el grupo. */
+  linkedUserId: string | null;
+  remindedAt: string | null;
   position: number;
 }
 
@@ -78,6 +83,9 @@ export interface Settlement {
   toId: string;
   amount: string;
   date: string;
+  /** false = lo informó un amigo y falta confirmarlo. */
+  confirmed: boolean;
+  reportedBy: string | null;
 }
 
 export interface Balance {
@@ -117,8 +125,9 @@ export interface GroupSummary {
   date: string | null;
   currency: string;
   shared: boolean;
-  participants: { id: string; name: string; isMe: boolean }[];
+  participants: { id: string; name: string; isMe: boolean; linkedUserId: string | null }[];
   expenseCount: number;
+  pendingPayments: number;
   totalSpent: string;
   myBalance: string | null;
   settled: boolean;
@@ -128,10 +137,68 @@ export interface PublicGroup {
   group: { name: string; date: string | null; currency: string };
   participants: { id: string; name: string }[];
   expenses: Omit<Expense, 'groupId'>[];
-  settlements: Settlement[];
+  settlements: Pick<Settlement, 'id' | 'fromId' | 'toId' | 'amount' | 'date'>[];
   totalSpent: string;
   balances: Balance[];
   transfers: Transfer[];
+}
+
+// --- Amigos ---------------------------------------------------------------------
+
+export interface Friend {
+  userId: string;
+  displayName: string | null;
+  birthDay: number | null;
+  birthMonth: number | null;
+  since: string;
+  contactId: string | null;
+}
+
+export interface FriendInvite {
+  id: string;
+  code: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface InvitePreview {
+  inviterName: string | null;
+  own: boolean;
+  alreadyFriends: boolean;
+}
+
+/** Grupo de otra persona donde participas como amigo. */
+export interface SharedGroupSummary {
+  id: string;
+  name: string;
+  date: string | null;
+  currency: string;
+  ownerName: string | null;
+  participantCount: number;
+  totalSpent: string;
+  myBalance: string;
+  youOwe: Transfer[];
+  remindedAt: string | null;
+  pendingReports: number;
+}
+
+export interface SharedGroupDetail {
+  group: { id: string; name: string; date: string | null; currency: string };
+  ownerName: string | null;
+  youId: string;
+  remindedAt: string | null;
+  participants: { id: string; name: string; isOwner: boolean }[];
+  expenses: Omit<Expense, 'groupId'>[];
+  settlements: (Pick<Settlement, 'id' | 'fromId' | 'toId' | 'amount' | 'date' | 'confirmed'> & { reportedByYou: boolean })[];
+  totalSpent: string;
+  balances: Balance[];
+  transfers: Transfer[];
+}
+
+export interface ParticipantPayload {
+  name: string;
+  contactId: string | null;
+  friendId?: string | null;
 }
 
 export interface ExpensePayload {

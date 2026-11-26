@@ -8,16 +8,19 @@ import type {
   GroupDetail,
   GroupInput,
   GroupRecord,
+  ParticipantChanges,
   ParticipantInput,
   ParticipantRecord,
   Relationship,
   SettlementInput,
   SettlementRecord,
+  SharedGroup,
 } from './people.types.js';
 
 /**
  * Acceso a datos de Personas. Toda operación recibe el `userId` dueño y filtra por él;
- * la única excepción es `getGroupByToken`, que sirve el enlace de solo lectura.
+ * las excepciones son `getGroupByToken` (enlace de solo lectura) y los grupos compartidos
+ * con un amigo, que filtran por `linkedUserId` (el amigo enlazado por el dueño).
  */
 export interface PeopleRepository {
   listContacts(userId: string): Promise<ContactRecord[]>;
@@ -42,7 +45,7 @@ export interface PeopleRepository {
     userId: string,
     groupId: string,
     id: string,
-    changes: Partial<Pick<ParticipantInput, 'name' | 'contactId'>>,
+    changes: ParticipantChanges,
   ): Promise<ParticipantRecord | null>;
   deleteParticipant(userId: string, groupId: string, id: string): Promise<boolean>;
 
@@ -52,6 +55,14 @@ export interface PeopleRepository {
 
   createSettlement(userId: string, groupId: string, data: SettlementInput): Promise<SettlementRecord>;
   deleteSettlement(userId: string, groupId: string, id: string): Promise<boolean>;
+  /** Confirma un pago informado por un amigo. */
+  confirmSettlement(userId: string, groupId: string, id: string): Promise<SettlementRecord | null>;
+
+  // --- Vista del amigo: grupos ajenos donde está enlazado -----------------------
+  listSharedGroups(friendUserId: string): Promise<SharedGroup[]>;
+  getSharedGroup(friendUserId: string, groupId: string): Promise<SharedGroup | null>;
+  /** Retira un pago que el amigo informó y que aún no se confirma. */
+  deleteReportedSettlement(friendUserId: string, groupId: string, id: string): Promise<boolean>;
 
   exportAll(userId: string): Promise<{ contacts: ContactRecord[]; groups: GroupDetail[] }>;
 }
@@ -71,6 +82,7 @@ const contactFromRow = (row: ContactRow): ContactRecord => ({
   email: row.email,
   relationship: row.relationship as Relationship | null,
   notes: row.notes,
+  friendUserId: row.friendUserId,
   createdAt: row.createdAt,
 });
 
@@ -96,6 +108,8 @@ const participantFromRow = (row: ParticipantRecord & Record<string, unknown>): P
   name: row.name,
   contactId: row.contactId,
   isMe: row.isMe,
+  linkedUserId: row.linkedUserId,
+  remindedAt: row.remindedAt,
   position: row.position,
 });
 
@@ -146,6 +160,8 @@ const settlementFromRow = (row: {
   toId: string;
   amount: bigint;
   date: Date;
+  confirmed: boolean;
+  reportedBy: string | null;
   createdAt: Date;
 }): SettlementRecord => ({
   id: row.id,
@@ -154,6 +170,8 @@ const settlementFromRow = (row: {
   toId: row.toId,
   amount: row.amount,
   date: toDay(row.date),
+  confirmed: row.confirmed,
+  reportedBy: row.reportedBy,
   createdAt: row.createdAt,
 });
 
@@ -338,6 +356,40 @@ export function createPrismaPeopleRepository(prisma: PrismaClient): PeopleReposi
 
     async deleteSettlement(userId, groupId, id) {
       const { count } = await prisma.splitSettlement.deleteMany({ where: { id, groupId, userId } });
+      return count > 0;
+    },
+
+    async confirmSettlement(userId, groupId, id) {
+      const { count } = await prisma.splitSettlement.updateMany({
+        where: { id, groupId, userId, confirmed: false },
+        data: { confirmed: true },
+      });
+      if (count === 0) return null;
+      return settlementFromRow(await prisma.splitSettlement.findFirstOrThrow({ where: { id, groupId, userId } }));
+    },
+
+    // --- Vista del amigo -------------------------------------------------------
+    async listSharedGroups(friendUserId) {
+      const rows = await prisma.splitGroup.findMany({
+        where: { participants: { some: { linkedUserId: friendUserId } }, userId: { not: friendUserId } },
+        orderBy: { createdAt: 'desc' },
+        include: groupInclude,
+      });
+      return rows.map((row) => ({ ownerId: row.userId, detail: detailFromRow(row) }));
+    },
+
+    async getSharedGroup(friendUserId, groupId) {
+      const row = await prisma.splitGroup.findFirst({
+        where: { id: groupId, participants: { some: { linkedUserId: friendUserId } }, userId: { not: friendUserId } },
+        include: groupInclude,
+      });
+      return row ? { ownerId: row.userId, detail: detailFromRow(row) } : null;
+    },
+
+    async deleteReportedSettlement(friendUserId, groupId, id) {
+      const { count } = await prisma.splitSettlement.deleteMany({
+        where: { id, groupId, reportedBy: friendUserId, confirmed: false },
+      });
       return count > 0;
     },
 

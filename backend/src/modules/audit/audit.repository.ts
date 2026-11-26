@@ -33,7 +33,16 @@ export type AuditAction =
   | 'people.expense.updated'
   | 'people.expense.deleted'
   | 'people.settlement.created'
-  | 'people.settlement.deleted';
+  | 'people.settlement.deleted'
+  | 'people.settlement.confirmed'
+  | 'people.settlement.reported'
+  | 'people.settlement.withdrawn'
+  | 'people.reminder.sent'
+  | 'friends.invite.created'
+  | 'friends.invite.revoked'
+  | 'friends.accepted'
+  | 'friends.removed'
+  | 'friends.contact.linked';
 
 export interface AuditEntry {
   userId: string | null;
