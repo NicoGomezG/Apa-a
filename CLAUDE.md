@@ -92,6 +92,10 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 - `prisma migrate dev` no sirve sin Docker: generar SQL con `prisma migrate diff` (ver README),
   agregar RLS a mano, y revisar que no haya `DROP`.
 - En Windows no hay `python`; para ediciones con scripts usar `node`.
+- `NODE_ENV=production` en Vercel hacía que `npm ci` omitiera devDependencies (`ng: command not found`).
+  Por eso `installCommand` usa `--include=dev`. No hace falta definir `NODE_ENV` en Vercel.
+- La API exige `SUPABASE_SECRET_KEY` cuando `NODE_ENV=production`: sin ella la función se cae al
+  arrancar (`FUNCTION_INVOCATION_FAILED` hasta en `/api/health`).
 - El `tsconfig` del backend excluye `*.test.ts`: el typecheck no revisa las pruebas (vitest sí).
 
 ## Pendientes

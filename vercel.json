@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci && npm ci --prefix backend",
+  "installCommand": "npm ci --include=dev && npm ci --include=dev --prefix backend",
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist/apana/browser",
   "functions": {

@@ -78,7 +78,7 @@ Vercel → Settings → Environment Variables:
 |---|---|
 | `NG_APP_SUPABASE_URL`, `NG_APP_SUPABASE_PUBLISHABLE_KEY`, `NG_APP_GOOGLE_AUTH_ENABLED` | Build del front (públicas) |
 | `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWT_SECRET` (opcional) | API (secretas) |
-| `NODE_ENV=production` | API |
+| `NODE_ENV` | No hace falta definirla. Si se define, la instalación igual incluye las dependencias de desarrollo (`--include=dev` en `vercel.json`). |
 
 Las migraciones **no** corren en el deploy: se aplican aparte con `db:migrate:deploy`
 apuntando a la base de producción. En Supabase de producción, agrega el dominio de Vercel a
