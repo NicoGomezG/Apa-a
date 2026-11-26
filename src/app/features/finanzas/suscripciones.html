@@ -58,10 +58,48 @@
         <label class="form-label" for="subAccount">Se paga con</label>
         <select id="subAccount" name="accountId" class="form-select" [(ngModel)]="draft.accountId">
           <option value="">Sin indicar</option>
-          @for (account of accounts(); track account.id) {
-            <option [value]="account.id">{{ account.name }}</option>
+          @if (accounts().length > 0) {
+            <optgroup label="Tus tarjetas y cuentas">
+              @for (account of accounts(); track account.id) {
+                <option [value]="account.id">{{ account.name }}@if (account.last4) { ··{{ account.last4 }}}</option>
+              }
+            </optgroup>
+          }
+          @if (presets().length > 0) {
+            <optgroup label="Agregar de la lista">
+              @for (preset of presets(); track preset.key) {
+                <option [value]="presetPrefix + preset.key">{{ preset.name }}</option>
+              }
+            </optgroup>
           }
         </select>
+        @if (draft.accountId.startsWith(presetPrefix)) {
+          <div class="form-text">La agregamos a tus cuentas al guardar.</div>
+        }
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="subEmail">Correo de la cuenta</label>
+        <input
+          id="subEmail"
+          name="email"
+          type="email"
+          class="form-control"
+          maxlength="254"
+          autocomplete="off"
+          placeholder="Con qué correo te registraste"
+          [(ngModel)]="draft.email"
+        />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="subNotes">Notas</label>
+        <input
+          id="subNotes"
+          name="notes"
+          class="form-control"
+          maxlength="500"
+          placeholder="Ej: plan familiar, la usa mi hermana"
+          [(ngModel)]="draft.notes"
+        />
       </div>
       <div class="col-12 col-md-3">
         <label class="form-label" for="subCategory">Categoría</label>
@@ -111,8 +149,20 @@
             <div class="small text-secondary">
               {{ sub.frequency === 'yearly' ? 'Anual' : 'Mensual' }}
               @if (sub.active) { · próximo cobro {{ formatDay(sub.next, true) }} }
-              @if (accountName()(sub.accountId); as account) { · {{ account }} }
             </div>
+            @if (accountName()(sub.accountId) || sub.email || sub.notes) {
+              <div class="small d-flex flex-wrap column-gap-3 mt-1">
+                @if (accountName()(sub.accountId); as account) {
+                  <span><i class="fa-solid fa-credit-card me-1 meta-icon" aria-hidden="true"></i>{{ account }}</span>
+                }
+                @if (sub.email) {
+                  <span class="text-break"><i class="fa-solid fa-envelope me-1 meta-icon" aria-hidden="true"></i>{{ sub.email }}</span>
+                }
+                @if (sub.notes) {
+                  <span class="text-break"><i class="fa-solid fa-note-sticky me-1 meta-icon" aria-hidden="true"></i>{{ sub.notes }}</span>
+                }
+              </div>
+            }
           </div>
           <div class="fw-semibold text-nowrap">{{ sub.amount | money: sub.currency }}</div>
           <div class="d-flex flex-wrap gap-2">

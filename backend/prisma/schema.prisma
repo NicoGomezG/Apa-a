@@ -182,6 +182,10 @@ model Subscription {
   accountId String?           @map("account_id") @db.Uuid
   category  String?           @db.VarChar(32)
   active    Boolean           @default(true)
+  /// Correo de la cuenta con que se contrató el servicio.
+  email     String?           @db.VarChar(254)
+  /// Notas libres (plan, quién la usa, cómo darla de baja…).
+  notes     String?           @db.VarChar(500)
   createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   account   FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)

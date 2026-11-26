@@ -110,6 +110,15 @@ const subscriptionFields = {
   accountId: z.uuid().nullable().optional(),
   category,
   active: z.boolean().default(true),
+  email: z
+    .string()
+    .trim()
+    .max(254)
+    .transform((value) => (value === '' ? null : value.toLowerCase()))
+    .refine((value) => value === null || z.email().safeParse(value).success, 'Correo inválido')
+    .nullable()
+    .optional(),
+  notes: optionalText(500),
 };
 const createSubscriptionBody = z.object(subscriptionFields);
 const updateSubscriptionBody = z
@@ -122,6 +131,8 @@ const updateSubscriptionBody = z
     accountId: subscriptionFields.accountId,
     category,
     active: z.boolean(),
+    email: subscriptionFields.email,
+    notes: subscriptionFields.notes,
   })
   .partial()
   .refine(nonEmpty, 'Sin cambios');
@@ -413,6 +424,8 @@ export const financeRoutes: FastifyPluginAsyncZod<FinanceRoutesDeps> = async (ap
       ...body,
       accountId: body.accountId ?? null,
       category: body.category ?? 'suscripciones',
+      email: body.email ?? null,
+      notes: body.notes ?? null,
     });
     await deps.audit.record({
       userId: user.id,

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { moneyToInput, parseMoneyInput } from '../../core/format/format';
@@ -10,7 +10,9 @@ import {
   ACCOUNT_KIND_LABELS,
   ACCOUNT_KINDS,
   CURRENCIES,
+  missingPresets,
   type Account,
+  type AccountPreset,
   type AccountKind,
   type AccountPayload,
 } from './finance.models';
@@ -73,6 +75,9 @@ export class FinanzasCuentas {
   protected readonly saving = signal(false);
   protected draft: AccountDraft = emptyDraft();
 
+  /** Lista base (CMR, Santander, MACH…) sin las que ya tienes. */
+  protected readonly presets = computed(() => missingPresets(this.accounts()));
+
   constructor() {
     void this.load();
   }
@@ -91,6 +96,11 @@ export class FinanzasCuentas {
     this.draft = emptyDraft();
     this.editingId.set(null);
     this.formOpen.set(true);
+  }
+
+  /** Rellena el formulario con una cuenta de la lista base; luego puedes sumar dígitos, cupo y fechas. */
+  protected usePreset(preset: AccountPreset): void {
+    this.draft = { ...emptyDraft(), name: preset.name, kind: preset.kind, institution: preset.institution };
   }
 
   protected openEdit(account: Account): void {

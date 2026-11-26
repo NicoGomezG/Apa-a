@@ -176,6 +176,8 @@ describe('resumen', () => {
     accountId: null,
     category: 'suscripciones',
     active: true,
+    email: null,
+    notes: null,
     createdAt: created,
     ...data,
   });

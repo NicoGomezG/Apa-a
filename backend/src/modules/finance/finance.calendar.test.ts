@@ -14,6 +14,8 @@ const sub = (data: Partial<SubscriptionRecord>): SubscriptionRecord => ({
   accountId: null,
   category: 'suscripciones',
   active: true,
+  email: null,
+  notes: null,
   createdAt: created,
   ...data,
 });

@@ -206,6 +206,8 @@ type SubscriptionRow = {
   accountId: string | null;
   category: string | null;
   active: boolean;
+  email: string | null;
+  notes: string | null;
   createdAt: Date;
 };
 
@@ -219,6 +221,8 @@ const subscriptionFromRow = (row: SubscriptionRow): SubscriptionRecord => ({
   accountId: row.accountId,
   category: row.category as Category | null,
   active: row.active,
+  email: row.email,
+  notes: row.notes,
   createdAt: row.createdAt,
 });
 

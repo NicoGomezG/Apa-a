@@ -166,6 +166,8 @@ export interface Subscription {
   accountId: string | null;
   category: Category | null;
   active: boolean;
+  email: string | null;
+  notes: string | null;
 }
 
 export interface SubscriptionPayload {
@@ -177,6 +179,8 @@ export interface SubscriptionPayload {
   accountId: string | null;
   category: Category | null;
   active: boolean;
+  email: string | null;
+  notes: string | null;
 }
 
 export interface Statement {
@@ -295,4 +299,51 @@ export interface FinanceCalendar {
   month: string;
   today: string;
   payments: CalendarPayment[];
+}
+
+// --- Lista base de tarjetas y cuentas --------------------------------------------
+
+export interface AccountPreset {
+  key: string;
+  name: string;
+  kind: AccountKind;
+  institution: string;
+}
+
+/** Medios de pago comunes en Chile, para crear la cuenta con un clic. */
+export const ACCOUNT_PRESETS: AccountPreset[] = [
+  { key: 'cmr-credito', name: 'CMR crédito', kind: 'credit_card', institution: 'Banco Falabella' },
+  { key: 'santander-credito', name: 'Santander crédito', kind: 'credit_card', institution: 'Santander' },
+  { key: 'banco-chile', name: 'Banco de Chile', kind: 'checking', institution: 'Banco de Chile' },
+  { key: 'bancoestado-debito', name: 'BancoEstado débito', kind: 'savings', institution: 'BancoEstado' },
+  { key: 'banco-chile-credito', name: 'Banco de Chile crédito', kind: 'credit_card', institution: 'Banco de Chile' },
+  { key: 'santander-debito', name: 'Santander débito', kind: 'checking', institution: 'Santander' },
+  { key: 'mach', name: 'MACH', kind: 'savings', institution: 'MACH' },
+  { key: 'mercadopago', name: 'Mercado Pago', kind: 'savings', institution: 'Mercado Pago' },
+];
+
+const normalizeName = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** Cuentas de la lista base que la persona todavía no tiene (comparando por nombre). */
+export function missingPresets(accounts: Pick<Account, 'name'>[]): AccountPreset[] {
+  const names = new Set(accounts.map((account) => normalizeName(account.name)));
+  return ACCOUNT_PRESETS.filter((preset) => !names.has(normalizeName(preset.name)));
+}
+
+export function presetPayload(preset: AccountPreset): AccountPayload {
+  return {
+    name: preset.name,
+    kind: preset.kind,
+    institution: preset.institution,
+    last4: null,
+    creditLimit: null,
+    billingDay: null,
+    paymentDay: null,
+  };
 }

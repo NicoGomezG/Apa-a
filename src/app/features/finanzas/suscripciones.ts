@@ -8,7 +8,11 @@ import { EmptyState } from '../../shared/ui/empty-state';
 import {
   CATEGORIES,
   categoryLabel,
+  ACCOUNT_KIND_LABELS,
+  ACCOUNT_PRESETS,
   CURRENCIES,
+  missingPresets,
+  presetPayload,
   type Account,
   type Category,
   type Frequency,
@@ -26,7 +30,12 @@ interface Draft {
   accountId: string;
   category: Category | '';
   active: boolean;
+  email: string;
+  notes: string;
 }
+
+/** Valor del selector "Se paga con" para una cuenta de la lista base que aún no existe. */
+const PRESET_PREFIX = 'preset:';
 
 /** Próximo cobro en o después de `today` (el día se ajusta en meses cortos). */
 export function nextCharge(startDate: string, frequency: Frequency, today: string): string {
@@ -48,6 +57,11 @@ export function nextCharge(startDate: string, frequency: Frequency, today: strin
   selector: 'app-finanzas-suscripciones',
   imports: [FormsModule, MoneyPipe, EmptyState],
   templateUrl: './suscripciones.html',
+  styles: `
+    .meta-icon {
+      color: var(--apana-section-color);
+    }
+  `,
 })
 export class FinanzasSuscripciones {
   private readonly finance = inject(FinanceService);
@@ -57,6 +71,8 @@ export class FinanzasSuscripciones {
   protected readonly categoryLabel = categoryLabel;
   protected readonly currencies = CURRENCIES;
   protected readonly formatDay = formatDay;
+  protected readonly kindLabels = ACCOUNT_KIND_LABELS;
+  protected readonly presetPrefix = PRESET_PREFIX;
 
   protected readonly subscriptions = signal<Subscription[]>([]);
   protected readonly accounts = signal<Account[]>([]);
@@ -93,6 +109,9 @@ export class FinanzasSuscripciones {
     return (id: string | null) => (id ? (names.get(id) ?? null) : null);
   });
 
+  /** Tarjetas y cuentas de la lista base que todavía no tienes: se crean al guardar. */
+  protected readonly presets = computed(() => missingPresets(this.accounts()));
+
   constructor() {
     void this.load();
   }
@@ -107,6 +126,8 @@ export class FinanzasSuscripciones {
       accountId: '',
       category: 'suscripciones',
       active: true,
+      email: '',
+      notes: '',
     };
   }
 
@@ -138,6 +159,8 @@ export class FinanzasSuscripciones {
       accountId: sub.accountId ?? '',
       category: sub.category ?? '',
       active: sub.active,
+      email: sub.email ?? '',
+      notes: sub.notes ?? '',
     };
     this.editingId.set(sub.id);
     this.formOpen.set(true);
@@ -150,6 +173,11 @@ export class FinanzasSuscripciones {
       this.status.set({ kind: 'error', message: 'Completa nombre, monto y fecha de cobro.' });
       return;
     }
+    const email = draft.email.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      this.status.set({ kind: 'error', message: 'Revisa el correo.' });
+      return;
+    }
     const payload: SubscriptionPayload = {
       name: draft.name.trim(),
       amount: String(amount),
@@ -159,10 +187,14 @@ export class FinanzasSuscripciones {
       accountId: draft.accountId || null,
       category: draft.category || null,
       active: draft.active,
+      email: email || null,
+      notes: draft.notes.trim() || null,
     };
     this.saving.set(true);
     this.status.set(null);
     try {
+      payload.accountId = await this.resolveAccount(draft.accountId);
+      draft.accountId = payload.accountId ?? '';
       const id = this.editingId();
       if (id) {
         const updated = await this.finance.updateSubscription(id, payload);
@@ -178,6 +210,16 @@ export class FinanzasSuscripciones {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** Si eligió una cuenta de la lista base, la crea primero y devuelve su id. */
+  private async resolveAccount(choice: string): Promise<string | null> {
+    if (!choice.startsWith(PRESET_PREFIX)) return choice || null;
+    const preset = ACCOUNT_PRESETS.find((item) => item.key === choice.slice(PRESET_PREFIX.length));
+    if (!preset) return null;
+    const created = await this.finance.createAccount(presetPayload(preset));
+    this.accounts.update((list) => [...list, created]);
+    return created.id;
   }
 
   protected async toggle(sub: Subscription): Promise<void> {

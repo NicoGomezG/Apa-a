@@ -114,6 +114,9 @@ export interface SubscriptionRecord {
   accountId: string | null;
   category: Category | null;
   active: boolean;
+  /** Correo de la cuenta del servicio. Dato personal: nunca va a la bitácora. */
+  email: string | null;
+  notes: string | null;
   createdAt: Date;
 }
 

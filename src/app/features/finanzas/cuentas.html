@@ -16,6 +16,25 @@
     <h2 id="form-cuenta" class="apana-section-title">
       <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ editingId() ? 'Editar cuenta' : 'Nueva cuenta' }}
     </h2>
+    @if (!editingId() && presets().length > 0) {
+      <div class="mb-3">
+        <p class="small fw-semibold mb-2">Elige una de la lista o complétala a mano:</p>
+        <div class="d-flex flex-wrap gap-2">
+          @for (preset of presets(); track preset.key) {
+            <button
+              type="button"
+              class="btn btn-sm"
+              [class.btn-primary]="draft.name === preset.name"
+              [class.btn-outline-primary]="draft.name !== preset.name"
+              [attr.aria-pressed]="draft.name === preset.name"
+              (click)="usePreset(preset)"
+            >
+              <i class="fa-solid {{ kindIcons[preset.kind] }} me-1" aria-hidden="true"></i>{{ preset.name }}
+            </button>
+          }
+        </div>
+      </div>
+    }
     <form class="row g-3" (ngSubmit)="save()">
       <div class="col-12 col-md-6">
         <label class="form-label" for="accName">Nombre</label>

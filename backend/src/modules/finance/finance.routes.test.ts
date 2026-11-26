@@ -149,6 +149,42 @@ describe('suscripciones', () => {
     expect((await call(ALICE, 'DELETE', `/subscriptions/${sub.id}`)).statusCode).toBe(204);
   });
 
+  it('guarda el correo y las notas, pero no los manda a la bitácora', async () => {
+    const card = await createAccount(ALICE, cardPayload);
+    const created = await call(ALICE, 'POST', '/subscriptions', {
+      name: 'Netflix',
+      amount: '9990',
+      frequency: 'monthly',
+      startDate: '2026-01-20',
+      accountId: card.id,
+      email: '  Persona@Correo.CL ',
+      notes: 'Plan estándar, compartido',
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ email: 'persona@correo.cl', notes: 'Plan estándar, compartido', accountId: card.id });
+
+    const id = created.json().id as string;
+    const cleared = await call(ALICE, 'PATCH', `/subscriptions/${id}`, { email: '', notes: '' });
+    expect(cleared.json()).toMatchObject({ email: null, notes: null });
+
+    expect(JSON.stringify(fakes.auditLog)).not.toContain('correo.cl');
+    expect(JSON.stringify(fakes.auditLog)).not.toContain('Plan estándar');
+
+    const export_ = await app.inject({ method: 'GET', url: '/api/me/export', headers: bearer(ALICE) });
+    expect(export_.json().finance.subscriptions[0]).toHaveProperty('email');
+  });
+
+  it('rechaza correos inválidos', async () => {
+    const res = await call(ALICE, 'POST', '/subscriptions', {
+      name: 'X',
+      amount: '1000',
+      frequency: 'monthly',
+      startDate: '2026-03-12',
+      email: 'no-es-correo',
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('rechaza montos no positivos', async () => {
     const res = await call(ALICE, 'POST', '/subscriptions', { name: 'X', amount: '0', frequency: 'monthly', startDate: '2026-03-12' });
     expect(res.statusCode).toBe(400);
