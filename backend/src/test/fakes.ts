@@ -11,6 +11,7 @@ import type {
   TransactionRecord,
 } from '../modules/finance/finance.types.js';
 import type { Preferences, ProfileRecord } from '../modules/profile/profile.repository.js';
+import { createFakePeople } from './fake-people.js';
 
 export const testEnv: Env = {
   NODE_ENV: 'test',
@@ -208,6 +209,7 @@ export function createFakeFinance() {
 /** Dependencias en memoria. Los tokens válidos son `token-<id>`. */
 export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Date) {
   const finance = createFakeFinance();
+  const people = createFakePeople();
   const profiles = new Map<string, ProfileRecord>();
   const auditLog: AuditEntry[] = [];
   const deletedAuthUsers: string[] = [];
@@ -269,15 +271,18 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
       async deleteAllData(userId) {
         profiles.delete(userId);
         finance.clearUser(userId);
+        people.clearUser(userId);
       },
     },
     finance: finance.repo,
+    people: people.repo,
     now,
   };
 
   return {
     deps,
     finance,
+    people,
     profiles,
     auditLog,
     deletedAuthUsers,

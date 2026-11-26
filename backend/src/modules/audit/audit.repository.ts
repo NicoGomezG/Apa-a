@@ -17,7 +17,23 @@ export type AuditAction =
   | 'finance.subscription.created'
   | 'finance.subscription.updated'
   | 'finance.subscription.deleted'
-  | 'finance.import.completed';
+  | 'finance.import.completed'
+  | 'people.contact.created'
+  | 'people.contact.updated'
+  | 'people.contact.deleted'
+  | 'people.group.created'
+  | 'people.group.updated'
+  | 'people.group.deleted'
+  | 'people.share.enabled'
+  | 'people.share.disabled'
+  | 'people.participant.added'
+  | 'people.participant.updated'
+  | 'people.participant.deleted'
+  | 'people.expense.created'
+  | 'people.expense.updated'
+  | 'people.expense.deleted'
+  | 'people.settlement.created'
+  | 'people.settlement.deleted';
 
 export interface AuditEntry {
   userId: string | null;

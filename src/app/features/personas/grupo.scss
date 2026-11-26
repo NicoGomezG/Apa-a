@@ -1,0 +1,96 @@
+:host {
+  display: block;
+}
+
+.positive {
+  color: var(--bs-success);
+}
+.negative {
+  color: var(--bs-danger);
+}
+.section-icon {
+  color: var(--apana-section-color);
+}
+
+.person-toggle {
+  border: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-weight: 600;
+
+  &.small-toggle {
+    padding: 0.2rem 0.65rem;
+    font-size: 0.85rem;
+  }
+  &.on {
+    background: var(--apana-section-color);
+    border-color: var(--apana-section-color);
+    color: #fff;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--apana-section-color);
+    outline-offset: 2px;
+  }
+}
+
+.item-row {
+  padding: 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.6rem;
+}
+
+.exact-label {
+  max-width: 9rem;
+}
+
+.preview {
+  padding: 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--apana-section-color);
+  background: var(--bs-body-bg);
+}
+
+.transfer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.6rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.35rem 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--bs-border-color);
+  font-weight: 600;
+  font-size: 0.9rem;
+
+  button {
+    border: 0;
+    background: transparent;
+    color: var(--bs-body-color);
+    padding: 0 0.35rem;
+  }
+}
+
+.expense-toggle {
+  color: var(--bs-body-color);
+  text-decoration: none;
+}
+
+.expense-detail {
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--bs-tertiary-bg);
+}
+
+.item-people {
+  color: var(--bs-body-color);
+}

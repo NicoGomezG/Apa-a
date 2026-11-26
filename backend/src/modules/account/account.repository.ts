@@ -20,6 +20,9 @@ export function createPrismaAccountRepository(prisma: PrismaClient): AccountRepo
         prisma.installmentPlan.deleteMany({ where: { userId } }),
         prisma.cardStatement.deleteMany({ where: { userId } }),
         prisma.financialAccount.deleteMany({ where: { userId } }),
+        // Personas: participantes, gastos, ítems, repartos y pagos caen con su grupo.
+        prisma.splitGroup.deleteMany({ where: { userId } }),
+        prisma.contact.deleteMany({ where: { userId } }),
         // user_preferences cae por ON DELETE CASCADE.
         prisma.profile.deleteMany({ where: { id: userId } }),
       ]);

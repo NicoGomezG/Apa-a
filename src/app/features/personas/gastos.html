@@ -1,0 +1,133 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <p class="mb-0">Divide boletas y gastos de salidas o viajes, y lleva la cuenta de quién le debe a quién.</p>
+  @if (!formOpen()) {
+    <button type="button" class="btn btn-sm btn-primary" (click)="formOpen.set(true)">
+      <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Nuevo grupo
+    </button>
+  }
+</div>
+
+@if (error(); as message) {
+  <div class="alert alert-danger py-2" role="alert">{{ message }}</div>
+}
+
+@if (formOpen()) {
+  <section class="apana-card mb-3" aria-labelledby="form-grupo">
+    <h2 id="form-grupo" class="apana-section-title">
+      <i class="fa-solid fa-users" aria-hidden="true"></i>Nuevo grupo
+    </h2>
+    <form class="row g-3" (ngSubmit)="create()">
+      <div class="col-12 col-md-8">
+        <label class="form-label" for="gName">Nombre</label>
+        <input id="gName" name="name" class="form-control" maxlength="80" placeholder="Ej: Asado sábado, Viaje a Pucón" [(ngModel)]="name" required />
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="gDate">Fecha</label>
+        <input id="gDate" name="date" type="date" class="form-control" [(ngModel)]="date" />
+      </div>
+
+      <div class="col-12">
+        <span class="form-label d-block">Quiénes participan</span>
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          <span class="chip">Tú</span>
+          @for (person of pending(); track $index) {
+            <span class="chip">
+              @if (person.contactId) { <i class="fa-solid fa-address-book" aria-hidden="true"></i> }
+              {{ person.name }}
+              <button type="button" (click)="removePending($index)" [attr.aria-label]="'Quitar a ' + person.name">
+                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+              </button>
+            </span>
+          }
+        </div>
+        <div class="row g-2">
+          @if (availableContacts().length > 0) {
+            <div class="col-12 col-md-6">
+              <label class="visually-hidden" for="gContact">Agregar desde tus contactos</label>
+              <div class="input-group">
+                <select id="gContact" name="contact" class="form-select" [(ngModel)]="contactChoice">
+                  <option value="">Elegir de tus contactos…</option>
+                  @for (contact of availableContacts(); track contact.id) {
+                    <option [value]="contact.id">{{ contact.name }}@if (contact.nickname) { ({{ contact.nickname }})}</option>
+                  }
+                </select>
+                <button type="button" class="btn btn-outline-primary" (click)="addContact()" [disabled]="!contactChoice">Agregar</button>
+              </div>
+            </div>
+          }
+          <div class="col-12 col-md-6">
+            <label class="visually-hidden" for="gNewName">Agregar por nombre</label>
+            <div class="input-group">
+              <input
+                id="gNewName"
+                name="newName"
+                class="form-control"
+                maxlength="80"
+                autocomplete="off"
+                placeholder="O escribe un nombre"
+                [(ngModel)]="newName"
+                (keydown.enter)="$event.preventDefault(); addName()"
+              />
+              <button type="button" class="btn btn-outline-primary" (click)="addName()" [disabled]="!newName.trim()">Agregar</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-text">No necesitan estar en Apaña: basta con el nombre.</div>
+      </div>
+
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ saving() ? 'Creando…' : 'Crear grupo' }}</button>
+        <button class="btn btn-outline-primary" type="button" (click)="formOpen.set(false)">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+@if (loading()) {
+  <p role="status">Cargando…</p>
+} @else if (groups().length === 0 && !formOpen()) {
+  <section class="apana-card">
+    <app-empty-state
+      icon="fa-receipt"
+      title="Sin gastos compartidos"
+      description="Crea un grupo para una salida o un viaje, ingresa la boleta y Apaña calcula cuánto debe cada uno, con propina incluida."
+    />
+  </section>
+} @else {
+  <div class="row g-3">
+    @for (group of groups(); track group.id) {
+      @let balance = balanceOf(group);
+      <div class="col-12 col-md-6 col-xl-4">
+        <a class="apana-card group-card h-100" [routerLink]="['/personas/gastos', group.id]">
+          <div class="d-flex justify-content-between gap-2">
+            <h2 class="h6 fw-bold mb-1 text-truncate">{{ group.name }}</h2>
+            @if (group.shared) {
+              <span class="badge text-bg-light border" title="Tiene enlace para invitados"><i class="fa-solid fa-link" aria-hidden="true"></i><span class="visually-hidden">Compartido</span></span>
+            }
+          </div>
+          <div class="small mb-2">
+            @if (group.date) { {{ formatDay(group.date, true) }} · }
+            {{ group.participants.length }} personas · {{ group.expenseCount }} {{ group.expenseCount === 1 ? 'gasto' : 'gastos' }}
+          </div>
+          <div class="d-flex justify-content-between align-items-end gap-2">
+            <div>
+              <div class="small">Total</div>
+              <div class="fw-bold">{{ group.totalSpent | money: group.currency }}</div>
+            </div>
+            <div class="text-end">
+              @if (sign(balance) > 0) {
+                <div class="small">Te deben</div>
+                <div class="fw-bold positive">{{ balance | money: group.currency }}</div>
+              } @else if (sign(balance) < 0) {
+                <div class="small">Debes</div>
+                <div class="fw-bold negative">{{ abs(balance) | money: group.currency }}</div>
+              } @else {
+                <div class="fw-semibold positive"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>Al día</div>
+              }
+            </div>
+          </div>
+        </a>
+      </div>
+    }
+  </div>
+}

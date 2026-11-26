@@ -86,6 +86,12 @@
                 @if (cell.holiday; as holiday) {
                   <span class="holiday-name">{{ holiday.name }}</span>
                 }
+                @for (birthday of cell.birthdays; track birthday.person.id) {
+                  <span class="birthday-name"><i class="fa-solid fa-cake-candles" aria-hidden="true"></i> {{ birthday.person.nickname || birthday.person.name }}</span>
+                }
+                @if (cell.birthdays.length > 0) {
+                  <span class="birthday-dot" aria-hidden="true"><i class="fa-solid fa-cake-candles"></i></span>
+                }
                 @if (cell.payments.length > 0) {
                   <span class="chips">
                     @for (payment of cell.payments.slice(0, 2); track payment.key) {
@@ -114,6 +120,7 @@
         <li><i class="fa-solid fa-circle-check status-paid" aria-hidden="true"></i> Pagado</li>
         <li><i class="fa-solid fa-clock status-pending" aria-hidden="true"></i> Por pagar</li>
         <li><i class="fa-solid fa-circle-question status-unconfirmed" aria-hidden="true"></i> Sin confirmar</li>
+        <li><i class="fa-solid fa-cake-candles birthday-icon" aria-hidden="true"></i> Cumpleaños</li>
       </ul>
     </section>
   </div>
@@ -131,6 +138,13 @@
         </p>
       } @else if (day.sunday) {
         <p class="mb-3"><span class="badge text-bg-danger">Domingo</span></p>
+      }
+
+      @for (birthday of day.birthdays; track birthday.person.id) {
+        <p class="mb-3">
+          <i class="fa-solid fa-cake-candles birthday-icon me-1" aria-hidden="true"></i>Cumpleaños de <strong>{{ birthday.person.name }}</strong>
+          @if (birthday.turns !== null) { · cumple {{ birthday.turns }} }
+        </p>
       }
 
       @if (day.payments.length === 0) {
@@ -247,6 +261,23 @@
         </ul>
       }
       <p class="small mt-3 mb-0">Feriados nacionales legales. No incluye feriados regionales ni de elecciones.</p>
+    </section>
+    <section class="apana-card mt-3" aria-labelledby="cumples-mes">
+      <h2 id="cumples-mes" class="apana-section-title">
+        <i class="fa-solid fa-cake-candles" aria-hidden="true"></i>Cumpleaños de {{ monthLabel() }}
+      </h2>
+      @if (birthdayList().length === 0) {
+        <p class="mb-0">Nadie de tus <a routerLink="/personas/contactos">contactos</a> cumple años este mes.</p>
+      } @else {
+        <ul class="list-unstyled d-grid gap-2 mb-0">
+          @for (birthday of birthdayList(); track birthday.person.id) {
+            <li class="d-flex gap-2">
+              <button type="button" class="btn btn-link p-0 fw-semibold text-nowrap" (click)="selected.set(birthday.date)">{{ formatDay(birthday.date) }}</button>
+              <span>{{ birthday.person.name }}@if (birthday.turns !== null) { · cumple {{ birthday.turns }} }</span>
+            </li>
+          }
+        </ul>
+      }
     </section>
   </div>
 </div>

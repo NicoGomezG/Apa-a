@@ -52,6 +52,21 @@
           }
         </ul>
         <a class="btn btn-sm btn-outline-primary" [routerLink]="section.path">Ver finanzas</a>
+      } @else if (section.key === 'personas' && birthdays().length > 0) {
+        <ul class="list-unstyled d-grid gap-2 mb-3">
+          @for (item of birthdays(); track item.person.id) {
+            <li class="d-flex justify-content-between align-items-start gap-2">
+              <div class="min-w-0">
+                <div class="fw-semibold text-truncate">
+                  <i class="fa-solid fa-cake-candles me-1" style="color: var(--apana-section-color)" aria-hidden="true"></i>{{ item.person.nickname || item.person.name }}
+                </div>
+                <div class="small">{{ formatDay(item.date) }}@if (item.turns !== null) { · cumple {{ item.turns }}}</div>
+              </div>
+              <span class="fw-semibold text-nowrap">{{ daysUntilLabel(item.daysUntil) }}</span>
+            </li>
+          }
+        </ul>
+        <a class="btn btn-sm btn-outline-primary" [routerLink]="section.path">Ver personas</a>
       } @else if (section.key === 'agenda' && nextHoliday(); as holiday) {
         <p class="mb-1">Próximo feriado</p>
         <p class="fw-semibold mb-3">

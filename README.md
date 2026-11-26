@@ -103,4 +103,11 @@ pagos del mes desde Finanzas (`GET /api/finance/calendar`): cobros de suscripcio
 de tarjetas con sus cuotas. Cada pago se cruza con los movimientos para mostrarlo como pagado, por
 pagar o sin confirmar.
 
-Los demás módulos (Personas, Compras, Vehículos, Salud) llegan en las fases siguientes.
+**Personas**: contactos con cumpleaños (en Personas, el Inicio y la Agenda) y gastos compartidos al
+estilo Tricount: grupos con participantes que no necesitan cuenta, gastos en partes iguales, por
+montos o por ítems de la boleta, propina opcional del 10 % proporcional a lo consumido, saldos,
+"quién le debe a quién" con el mínimo de transferencias y pagos registrados. Enlace de solo lectura
+para invitados (`/compartido/<código>`, revocable). El cálculo vive en
+`backend/src/modules/people/split.math.ts` (copia para la vista previa en `src/app/features/personas/`).
+
+Los demás módulos ( Compras, Vehículos, Salud) llegan en las fases siguientes.

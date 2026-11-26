@@ -32,14 +32,6 @@ export const SETTINGS_ITEM: NavItem = { key: 'ajustes', path: '/ajustes', label:
 
 /** Módulos que todavía no están construidos. La pantalla lo dice tal cual. */
 export const UPCOMING_MODULES: Record<string, UpcomingModule> = {
-  personas: {
-    key: 'personas',
-    title: 'Personas',
-    icon: 'fa-user-group',
-    phase: 3,
-    summary: 'Cumpleaños, fechas importantes y salidas, con reparto de la cuenta a partir de una foto de la boleta.',
-    features: ['Contactos y cumpleaños', 'Eventos y salidas', 'Lectura de boletas con IA', 'Reparto de gastos y enlace para invitados'],
-  },
   compras: {
     key: 'compras',
     title: 'Compras',

@@ -194,3 +194,152 @@ model Subscription {
   @@map("subscriptions")
   @@schema("app")
 }
+
+// --- Personas -------------------------------------------------------------------
+
+model Contact {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  userId       String             @map("user_id") @db.Uuid
+  name         String             @db.VarChar(80)
+  nickname     String?            @db.VarChar(40)
+  /// Cumpleaños: día y mes; el año es opcional (solo para calcular la edad).
+  birthDay     Int?               @map("birth_day") @db.SmallInt
+  birthMonth   Int?               @map("birth_month") @db.SmallInt
+  birthYear    Int?               @map("birth_year") @db.SmallInt
+  phone        String?            @db.VarChar(30)
+  email        String?            @db.VarChar(254)
+  /// familia | amistad | pareja | trabajo | otro
+  relationship String?            @db.VarChar(16)
+  notes        String?            @db.VarChar(500)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  participants SplitParticipant[]
+
+  @@index([userId])
+  @@map("contacts")
+  @@schema("app")
+}
+
+/// Grupo o salida con gastos compartidos (estilo Tricount).
+model SplitGroup {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  userId       String             @map("user_id") @db.Uuid
+  name         String             @db.VarChar(80)
+  date         DateTime?          @db.Date
+  currency     String             @default("CLP") @db.Char(3)
+  /// Código del enlace de solo lectura para invitados; null = sin enlace.
+  shareToken   String?            @unique @map("share_token") @db.VarChar(64)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  participants SplitParticipant[]
+  expenses     SplitExpense[]
+  settlements  SplitSettlement[]
+
+  @@index([userId])
+  @@map("split_groups")
+  @@schema("app")
+}
+
+model SplitParticipant {
+  id               String            @id @default(uuid(7)) @db.Uuid
+  groupId          String            @map("group_id") @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  name             String            @db.VarChar(80)
+  contactId        String?           @map("contact_id") @db.Uuid
+  /// La persona dueña del grupo.
+  isMe             Boolean           @default(false) @map("is_me")
+  position         Int               @db.SmallInt
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  group            SplitGroup        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  contact          Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  paidExpenses     SplitExpense[]
+  shares           SplitShare[]
+  settlementsSent  SplitSettlement[] @relation("SettlementFrom")
+  settlementsTaken SplitSettlement[] @relation("SettlementTo")
+
+  @@index([groupId])
+  @@index([userId])
+  @@map("split_participants")
+  @@schema("app")
+}
+
+model SplitExpense {
+  id          String             @id @default(uuid(7)) @db.Uuid
+  groupId     String             @map("group_id") @db.Uuid
+  userId      String             @map("user_id") @db.Uuid
+  description String             @db.VarChar(120)
+  date        DateTime           @db.Date
+  payerId     String             @map("payer_id") @db.Uuid
+  /// equal | exact | items
+  mode        String             @db.VarChar(8)
+  /// Consumo sin propina (unidad mínima).
+  subtotal    BigInt
+  tipPercent  Int                @default(0) @map("tip_percent") @db.SmallInt
+  tip         BigInt             @default(0)
+  total       BigInt
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  group       SplitGroup         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  payer       SplitParticipant   @relation(fields: [payerId], references: [id], onDelete: NoAction)
+  items       SplitExpenseItem[]
+  shares      SplitShare[]
+
+  @@index([groupId])
+  @@index([userId])
+  @@map("split_expenses")
+  @@schema("app")
+}
+
+/// Línea de una boleta, asignada a una o más personas.
+model SplitExpenseItem {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  expenseId      String       @map("expense_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  description    String       @db.VarChar(120)
+  quantity       Int          @db.SmallInt
+  unitPrice      BigInt       @map("unit_price")
+  amount         BigInt
+  participantIds String[]     @map("participant_ids") @db.Uuid
+  position       Int          @db.SmallInt
+  expense        SplitExpense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
+  @@map("split_expense_items")
+  @@schema("app")
+}
+
+/// Lo que le corresponde a cada persona en un gasto (calculado por el backend).
+model SplitShare {
+  expenseId     String           @map("expense_id") @db.Uuid
+  participantId String           @map("participant_id") @db.Uuid
+  userId        String           @map("user_id") @db.Uuid
+  consumption   BigInt
+  tip           BigInt           @default(0)
+  expense       SplitExpense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  participant   SplitParticipant @relation(fields: [participantId], references: [id], onDelete: NoAction)
+
+  @@id([expenseId, participantId])
+  @@index([participantId])
+  @@map("split_shares")
+  @@schema("app")
+}
+
+/// Pago entre personas del grupo para saldar deudas.
+model SplitSettlement {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  groupId   String           @map("group_id") @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  fromId    String           @map("from_id") @db.Uuid
+  toId      String           @map("to_id") @db.Uuid
+  amount    BigInt
+  date      DateTime         @db.Date
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  group     SplitGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  from      SplitParticipant @relation("SettlementFrom", fields: [fromId], references: [id], onDelete: NoAction)
+  to        SplitParticipant @relation("SettlementTo", fields: [toId], references: [id], onDelete: NoAction)
+
+  @@index([groupId])
+  @@index([userId])
+  @@map("split_settlements")
+  @@schema("app")
+}

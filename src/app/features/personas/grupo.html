@@ -1,0 +1,449 @@
+<a class="d-inline-block mb-3" routerLink="/personas/gastos">
+  <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>Gastos compartidos
+</a>
+
+@if (status(); as s) {
+  <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
+    {{ s.message }}
+  </div>
+}
+
+@if (loading()) {
+  <p role="status">Cargando…</p>
+} @else if (detail(); as d) {
+  <header class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h2 class="h4 mb-1">{{ d.group.name }}</h2>
+      <p class="mb-0">
+        @if (d.group.date) { {{ formatDay(d.group.date, true) }} · }
+        Total <strong>{{ d.totalSpent | money: currency() }}</strong>
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary" (click)="openNewExpense()" [disabled]="busy()">
+      <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Agregar gasto
+    </button>
+  </header>
+
+  <!-- Formulario de gasto -->
+  @if (expenseFormOpen()) {
+    @let p = preview();
+    <section class="apana-card mb-3" aria-labelledby="form-gasto">
+      <h3 id="form-gasto" class="apana-section-title">
+        <i class="fa-solid fa-receipt" aria-hidden="true"></i>{{ editingExpenseId() ? 'Editar gasto' : 'Nuevo gasto' }}
+      </h3>
+      <form class="row g-3" (ngSubmit)="saveExpense()">
+        <div class="col-12 col-md-5">
+          <label class="form-label" for="eDesc">Descripción</label>
+          <input id="eDesc" name="description" class="form-control" maxlength="120" placeholder="Ej: Restorán, Supermercado" [(ngModel)]="draft.description" required />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="eDate">Fecha</label>
+          <input id="eDate" name="date" type="date" class="form-control" [(ngModel)]="draft.date" required />
+        </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label" for="ePayer">Pagó</label>
+          <select id="ePayer" name="payerId" class="form-select" [(ngModel)]="draft.payerId">
+            @for (participant of d.participants; track participant.id) {
+              <option [value]="participant.id">{{ name(participant.id) }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="col-12">
+          <span class="form-label d-block">Cómo se divide</span>
+          <div class="btn-group flex-wrap" role="group" aria-label="Cómo se divide">
+            @for (mode of modes; track mode) {
+              <button
+                type="button"
+                class="btn btn-sm"
+                [class.btn-primary]="draft.mode === mode"
+                [class.btn-outline-primary]="draft.mode !== mode"
+                [attr.aria-pressed]="draft.mode === mode"
+                (click)="setMode(mode)"
+              >
+                {{ modeLabels[mode] }}
+              </button>
+            }
+          </div>
+        </div>
+
+        @switch (draft.mode) {
+          @case ('equal') {
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="eAmount">Monto total (sin propina)</label>
+              <input id="eAmount" name="amount" class="form-control" inputmode="numeric" placeholder="45.990" [(ngModel)]="draft.amount" />
+            </div>
+            <div class="col-12">
+              <span class="form-label d-block">Entre quiénes</span>
+              <div class="d-flex flex-wrap gap-2">
+                @for (participant of d.participants; track participant.id) {
+                  <button
+                    type="button"
+                    class="person-toggle"
+                    [class.on]="draft.participantIds.includes(participant.id)"
+                    [attr.aria-pressed]="draft.participantIds.includes(participant.id)"
+                    (click)="toggle(draft.participantIds, participant.id)"
+                  >
+                    {{ name(participant.id) }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+          @case ('exact') {
+            <div class="col-12">
+              <span class="form-label d-block">Cuánto consumió cada uno (sin propina)</span>
+              <div class="row g-2">
+                @for (participant of d.participants; track participant.id) {
+                  <div class="col-12 col-sm-6 col-lg-4">
+                    <div class="input-group">
+                      <label class="input-group-text text-truncate exact-label" [for]="'ex-' + participant.id">{{ name(participant.id) }}</label>
+                      <input
+                        class="form-control"
+                        inputmode="numeric"
+                        placeholder="0"
+                        [id]="'ex-' + participant.id"
+                        [name]="'ex-' + participant.id"
+                        [(ngModel)]="draft.exact[participant.id]"
+                      />
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @case ('items') {
+            <div class="col-12">
+              <span class="form-label d-block">Ítems de la boleta</span>
+              <p class="small mb-2">Toca los nombres de quienes consumieron cada ítem. Si lo compartieron, se divide entre ellos.</p>
+              <ol class="list-unstyled d-grid gap-3 mb-2">
+                @for (item of draft.items; track $index; let i = $index) {
+                  <li class="item-row">
+                    <div class="row g-2 align-items-end">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label small mb-1" [for]="'it-d-' + i">Ítem {{ i + 1 }}</label>
+                        <input class="form-control" maxlength="120" placeholder="Ej: Lomo a lo pobre" [id]="'it-d-' + i" [name]="'it-d-' + i" [(ngModel)]="item.description" />
+                      </div>
+                      <div class="col-3 col-md-2">
+                        <label class="form-label small mb-1" [for]="'it-q-' + i">Cant.</label>
+                        <input class="form-control" type="number" min="1" max="99" [id]="'it-q-' + i" [name]="'it-q-' + i" [(ngModel)]="item.quantity" />
+                      </div>
+                      <div class="col-6 col-md-3">
+                        <label class="form-label small mb-1" [for]="'it-p-' + i">Precio unitario</label>
+                        <input class="form-control" inputmode="numeric" placeholder="12.990" [id]="'it-p-' + i" [name]="'it-p-' + i" [(ngModel)]="item.unitPrice" />
+                      </div>
+                      <div class="col-3 col-md-1 text-end">
+                        <button type="button" class="btn btn-outline-danger" (click)="removeItem(i)" [attr.aria-label]="'Quitar ítem ' + (i + 1)">
+                          <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                      @for (participant of d.participants; track participant.id) {
+                        <button
+                          type="button"
+                          class="person-toggle small-toggle"
+                          [class.on]="item.participantIds.includes(participant.id)"
+                          [attr.aria-pressed]="item.participantIds.includes(participant.id)"
+                          (click)="toggle(item.participantIds, participant.id)"
+                        >
+                          {{ participant.isMe ? 'Tú' : participant.name }}
+                        </button>
+                      }
+                      <button type="button" class="btn btn-link btn-sm p-0" (click)="setAll(item)">
+                        {{ item.participantIds.length === d.participants.length ? 'Nadie' : 'Todos' }}
+                      </button>
+                      @if (itemTotal(item); as total) {
+                        @if (item.quantity > 1) {
+                          <span class="ms-auto small fw-semibold">{{ total | money: currency() }}</span>
+                        }
+                      }
+                    </div>
+                  </li>
+                }
+              </ol>
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="addItem()">
+                <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Agregar ítem
+              </button>
+            </div>
+          }
+        }
+
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input id="eTip" name="tip" class="form-check-input" type="checkbox" role="switch" [(ngModel)]="draft.tip" />
+            <label class="form-check-label" for="eTip">
+              Agregar propina del {{ tipPercent }} %
+              <span class="small d-block">A cada persona se le suma el {{ tipPercent }} % de lo que consumió.</span>
+            </label>
+          </div>
+        </div>
+
+        @if (p.error) {
+          <div class="col-12"><div class="alert alert-warning py-2 mb-0" role="status">{{ p.error }}</div></div>
+        }
+        @if (p.result; as r) {
+          <div class="col-12">
+            <div class="preview" aria-live="polite">
+              <div class="fw-semibold mb-2">Así queda</div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th scope="col">Persona</th>
+                      <th scope="col" class="text-end">Consumo</th>
+                      @if (sign(r.tip) > 0) { <th scope="col" class="text-end">Propina</th> }
+                      <th scope="col" class="text-end">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (share of r.shares; track share.participantId) {
+                      <tr>
+                        <td>{{ name(share.participantId) }}</td>
+                        <td class="text-end">{{ share.consumption | money: currency() }}</td>
+                        @if (sign(r.tip) > 0) { <td class="text-end">{{ share.tip | money: currency() }}</td> }
+                        <td class="text-end fw-semibold">{{ share.consumption + share.tip | money: currency() }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th scope="row">Total boleta</th>
+                      <td class="text-end">{{ r.subtotal | money: currency() }}</td>
+                      @if (sign(r.tip) > 0) { <td class="text-end">{{ r.tip | money: currency() }}</td> }
+                      <td class="text-end fw-bold">{{ r.total | money: currency() }}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        }
+
+        <div class="col-12 d-flex gap-2">
+          <button class="btn btn-primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando…' : 'Guardar gasto' }}</button>
+          <button class="btn btn-outline-primary" type="button" (click)="expenseFormOpen.set(false)">Cancelar</button>
+        </div>
+      </form>
+    </section>
+  }
+
+  <div class="row g-3">
+    <!-- Saldos -->
+    <div class="col-12 col-lg-7">
+      <section class="apana-card h-100" aria-labelledby="quien-debe">
+        <h3 id="quien-debe" class="apana-section-title">
+          <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>¿Quién le debe a quién?
+        </h3>
+        @if (d.expenses.length === 0) {
+          <p class="mb-0">Agrega el primer gasto y aquí verás cuánto debe cada uno.</p>
+        } @else if (d.transfers.length === 0) {
+          <p class="mb-0 positive fw-semibold"><i class="fa-solid fa-circle-check me-1" aria-hidden="true"></i>Todos están al día.</p>
+        } @else {
+          <ul class="list-unstyled d-grid gap-2 mb-0">
+            @for (transfer of d.transfers; track transfer.fromId + transfer.toId) {
+              <li class="transfer">
+                <span class="flex-grow-1">
+                  <strong>{{ name(transfer.fromId) }}</strong> le paga a <strong>{{ name(transfer.toId) }}</strong>
+                </span>
+                <span class="fw-bold text-nowrap">{{ transfer.amount | money: currency() }}</span>
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="settle(transfer)" [disabled]="busy()">
+                  Registrar pago
+                </button>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (d.expenses.length > 0) {
+          <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th scope="col">Persona</th>
+                  <th scope="col" class="text-end">Pagó</th>
+                  <th scope="col" class="text-end">Le corresponde</th>
+                  <th scope="col" class="text-end">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of balanceRows(); track row.participant.id) {
+                  <tr>
+                    <td>{{ name(row.participant.id) }}</td>
+                    <td class="text-end">{{ row.paid | money: currency() }}</td>
+                    <td class="text-end">{{ row.owed | money: currency() }}</td>
+                    <td class="text-end fw-semibold" [class.positive]="sign(row.balance) > 0" [class.negative]="sign(row.balance) < 0">
+                      @if (sign(row.balance) > 0) { le deben {{ row.balance | money: currency() }} }
+                      @else if (sign(row.balance) < 0) { debe {{ abs(row.balance) | money: currency() }} }
+                      @else { al día }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    </div>
+
+    <!-- Personas y enlace -->
+    <div class="col-12 col-lg-5 d-grid gap-3 align-content-start">
+      <section class="apana-card" aria-labelledby="personas-grupo">
+        <h3 id="personas-grupo" class="apana-section-title">
+          <i class="fa-solid fa-users" aria-hidden="true"></i>Personas
+        </h3>
+        <ul class="list-unstyled d-flex flex-wrap gap-2 mb-3">
+          @for (participant of d.participants; track participant.id) {
+            <li class="chip">
+              {{ name(participant.id) }}
+              @if (!participant.isMe) {
+                <button type="button" (click)="removeParticipant(participant.id)" [disabled]="busy()" [attr.aria-label]="'Quitar a ' + participant.name">
+                  <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                </button>
+              }
+            </li>
+          }
+        </ul>
+        <form class="d-grid gap-2" (ngSubmit)="addParticipant()">
+          @if (availableContacts().length > 0) {
+            <label class="visually-hidden" for="pContact">Agregar desde tus contactos</label>
+            <select id="pContact" name="contact" class="form-select form-select-sm" [(ngModel)]="contactChoice">
+              <option value="">Elegir de tus contactos…</option>
+              @for (contact of availableContacts(); track contact.id) {
+                <option [value]="contact.id">{{ contact.name }}</option>
+              }
+            </select>
+          }
+          <div class="input-group input-group-sm">
+            <label class="visually-hidden" for="pName">Nombre</label>
+            <input id="pName" name="newParticipant" class="form-control" maxlength="80" placeholder="O escribe un nombre" [(ngModel)]="newParticipant" [disabled]="!!contactChoice" />
+            <button type="submit" class="btn btn-outline-primary" [disabled]="busy() || (!contactChoice && !newParticipant.trim())">Agregar</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="apana-card" aria-labelledby="enlace-grupo">
+        <h3 id="enlace-grupo" class="apana-section-title">
+          <i class="fa-solid fa-link" aria-hidden="true"></i>Enlace para invitados
+        </h3>
+        @if (shareUrl(); as url) {
+          <p class="small mb-2">Quien tenga el enlace ve los gastos y cuánto debe, sin crear cuenta y sin poder editar.</p>
+          <div class="input-group input-group-sm mb-2">
+            <label class="visually-hidden" for="shareUrl">Enlace</label>
+            <input id="shareUrl" class="form-control" readonly [value]="url" (focus)="$any($event.target).select()" />
+            <button type="button" class="btn btn-primary" (click)="copyShare()">{{ copied() ? '¡Copiado!' : 'Copiar' }}</button>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="enableShare()" [disabled]="busy()">Crear uno nuevo</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="disableShare()" [disabled]="busy()">Desactivar</button>
+          </div>
+          <p class="small mt-2 mb-0">Crear uno nuevo desactiva el anterior.</p>
+        } @else {
+          <p class="small mb-2">Comparte un enlace de solo lectura para que cada uno vea cuánto debe, aunque no use Apaña.</p>
+          <button type="button" class="btn btn-sm btn-outline-primary" (click)="enableShare()" [disabled]="busy()">Crear enlace</button>
+        }
+      </section>
+    </div>
+  </div>
+
+  <!-- Gastos -->
+  <section class="apana-card mt-3" aria-labelledby="lista-gastos">
+    <h3 id="lista-gastos" class="apana-section-title">
+      <i class="fa-solid fa-list" aria-hidden="true"></i>Gastos
+    </h3>
+    @if (d.expenses.length === 0) {
+      <p class="mb-0">Todavía no hay gastos en este grupo.</p>
+    } @else {
+      <ul class="list-unstyled mb-0">
+        @for (expense of d.expenses; track expense.id) {
+          <li class="py-3 border-bottom">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <button
+                type="button"
+                class="btn btn-link p-0 text-start flex-grow-1 expense-toggle"
+                [attr.aria-expanded]="openExpenseId() === expense.id"
+                (click)="openExpenseId.set(openExpenseId() === expense.id ? null : expense.id)"
+              >
+                <span class="fw-semibold d-block">{{ expense.description }}</span>
+                <span class="small">
+                  {{ formatDay(expense.date) }} · pagó {{ name(expense.payerId) }} · {{ modeLabels[expense.mode] }}
+                  @if (expense.tipPercent > 0) { · propina {{ expense.tipPercent }} % }
+                </span>
+              </button>
+              <span class="fw-bold text-nowrap">{{ expense.total | money: currency() }}</span>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="openEditExpense(expense)">Editar</button>
+                @if (confirmDelete() === expense.id) {
+                  <button type="button" class="btn btn-sm btn-danger" (click)="deleteExpense(expense)">Sí, eliminar</button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDelete.set(null)">No</button>
+                } @else {
+                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="confirmDelete.set(expense.id)" aria-label="Eliminar gasto">
+                    <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                  </button>
+                }
+              </div>
+            </div>
+            @if (openExpenseId() === expense.id) {
+              <div class="expense-detail mt-2">
+                @if (expense.items.length > 0) {
+                  <ul class="list-unstyled small mb-2">
+                    @for (item of expense.items; track $index) {
+                      <li class="d-flex justify-content-between gap-2">
+                        <span>
+                          @if (item.quantity > 1) { {{ item.quantity }} × }{{ item.description }}
+                          <span class="item-people">· {{ item.participantIds.length === d.participants.length ? 'todos' : namesOf(item.participantIds) }}</span>
+                        </span>
+                        <span class="text-nowrap">{{ item.amount | money: currency() }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+                <ul class="list-unstyled small mb-0 d-grid gap-1">
+                  @for (share of expense.shares; track share.participantId) {
+                    <li class="d-flex justify-content-between gap-2">
+                      <span>{{ name(share.participantId) }}</span>
+                      <span class="text-nowrap">
+                        {{ share.consumption | money: currency() }}
+                        @if (expense.tipPercent > 0) { + {{ share.tip | money: currency() }} propina }
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    @if (d.settlements.length > 0) {
+      <h4 class="h6 fw-bold mt-3">Pagos registrados</h4>
+      <ul class="list-unstyled mb-0 d-grid gap-2">
+        @for (settlement of d.settlements; track settlement.id) {
+          <li class="d-flex flex-wrap align-items-center gap-2">
+            <i class="fa-solid fa-money-bill-transfer section-icon" aria-hidden="true"></i>
+            <span class="flex-grow-1">
+              {{ name(settlement.fromId) }} le pagó a {{ name(settlement.toId) }} · {{ formatDay(settlement.date) }}
+            </span>
+            <span class="fw-semibold">{{ settlement.amount | money: currency() }}</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteSettlement(settlement.id)" [disabled]="busy()" aria-label="Deshacer pago">
+              <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  <div class="mt-4">
+    @if (confirmDelete() === 'group') {
+      <span class="me-2">¿Eliminar el grupo con todos sus gastos?</span>
+      <button type="button" class="btn btn-sm btn-danger me-2" (click)="deleteGroup()" [disabled]="busy()">Sí, eliminar</button>
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDelete.set(null)">No</button>
+    } @else {
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="confirmDelete.set('group')">Eliminar grupo</button>
+    }
+  </div>
+} @else {
+  <p>No encontramos este grupo.</p>
+}

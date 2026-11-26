@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { birthdaysInMonth, type UpcomingBirthday } from '../../core/calendar/birthdays';
 import { holidaysInMonth, nextHoliday, type Holiday } from '../../core/calendar/holidays-cl';
 import { monthGrid, WEEKDAY_LABELS, type GridDay } from '../../core/calendar/month-grid';
 import { formatDay, formatMonth, todayIn } from '../../core/format/format';
@@ -10,6 +11,8 @@ import { MonthPicker } from '../../shared/ui/month-picker';
 import { PageHeader } from '../../shared/ui/page-header';
 import type { CalendarPayment, PaymentStatus } from '../finanzas/finance.models';
 import { FinanceService } from '../finanzas/finance.service';
+import type { Contact } from '../personas/people.models';
+import { PeopleService } from '../personas/people.service';
 
 export const STATUS_LABELS: Record<PaymentStatus, string> = {
   paid: 'Pagado',
@@ -31,6 +34,7 @@ interface Cell extends GridDay {
   red: boolean;
   isToday: boolean;
   payments: CalendarPayment[];
+  birthdays: UpcomingBirthday<Contact>[];
   ariaLabel: string;
 }
 
@@ -44,6 +48,7 @@ interface Cell extends GridDay {
 export class Agenda {
   private readonly finance = inject(FinanceService);
   private readonly profile = inject(ProfileService);
+  private readonly people = inject(PeopleService);
 
   protected readonly weekdays = WEEKDAY_LABELS;
   protected readonly statusLabels = STATUS_LABELS;
@@ -56,6 +61,9 @@ export class Agenda {
   protected readonly payments = signal<CalendarPayment[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+  protected readonly contacts = signal<Contact[]>([]);
+  protected readonly birthdays = computed(() => birthdaysInMonth(this.contacts(), this.month()));
+  protected readonly birthdayList = computed(() => [...this.birthdays().values()].flat());
 
   protected readonly monthLabel = computed(() => formatMonth(this.month()));
   protected readonly holidays = computed(() => holidaysInMonth(this.month()));
@@ -64,6 +72,7 @@ export class Agenda {
 
   protected readonly weeks = computed<Cell[][]>(() => {
     const holidays = this.holidays();
+    const birthdays = this.birthdays();
     const today = this.today();
     const byDay = new Map<string, CalendarPayment[]>();
     for (const payment of this.payments()) {
@@ -73,8 +82,10 @@ export class Agenda {
       week.map((day) => {
         const holiday = day.inMonth ? (holidays.get(day.date) ?? null) : null;
         const payments = day.inMonth ? (byDay.get(day.date) ?? []) : [];
+        const dayBirthdays = day.inMonth ? (birthdays.get(day.date) ?? []) : [];
         const parts = [longDay(day.date)];
         if (holiday) parts.push(`feriado: ${holiday.name}`);
+        if (dayBirthdays.length) parts.push(`cumpleaños de ${dayBirthdays.map((item) => item.person.name).join(' y ')}`);
         if (payments.length) parts.push(payments.length === 1 ? '1 pago' : `${payments.length} pagos`);
         return {
           ...day,
@@ -82,6 +93,7 @@ export class Agenda {
           red: day.weekday === 0 || holiday !== null,
           isToday: day.date === today,
           payments,
+          birthdays: dayBirthdays,
           ariaLabel: parts.join(', '),
         };
       }),
@@ -96,6 +108,7 @@ export class Agenda {
       holiday: this.holidays().get(date) ?? null,
       sunday: new Date(`${date}T12:00:00Z`).getUTCDay() === 0,
       payments: this.payments().filter((payment) => payment.date === date),
+      birthdays: this.birthdays().get(date) ?? [],
     };
   });
 
@@ -119,6 +132,10 @@ export class Agenda {
     effect(() => {
       void this.load(this.month());
     });
+    void this.people
+      .contacts()
+      .then((contacts) => this.contacts.set(contacts))
+      .catch(() => undefined);
   }
 
   private async load(month: string): Promise<void> {

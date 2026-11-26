@@ -43,6 +43,12 @@ export const routes: Routes = [
     ],
   },
   {
+    // Enlace de solo lectura para invitados: sin sesión.
+    path: 'compartido/:token',
+    title: 'Gastos compartidos · Apaña',
+    loadComponent: () => import('./features/public/compartido').then((m) => m.Compartido),
+  },
+  {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./layout/shell').then((m) => m.Shell),
@@ -90,7 +96,28 @@ export const routes: Routes = [
         title: 'Agenda · Apaña',
         loadComponent: () => import('./features/agenda/agenda').then((m) => m.Agenda),
       },
-      upcoming('personas', 'Personas'),
+      {
+        path: 'personas',
+        loadComponent: () => import('./features/personas/personas').then((m) => m.Personas),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'contactos' },
+          {
+            path: 'contactos',
+            title: 'Contactos · Personas · Apaña',
+            loadComponent: () => import('./features/personas/contactos').then((m) => m.PersonasContactos),
+          },
+          {
+            path: 'gastos',
+            title: 'Gastos compartidos · Personas · Apaña',
+            loadComponent: () => import('./features/personas/gastos').then((m) => m.PersonasGastos),
+          },
+          {
+            path: 'gastos/:id',
+            title: 'Grupo · Gastos compartidos · Apaña',
+            loadComponent: () => import('./features/personas/grupo').then((m) => m.PersonasGrupo),
+          },
+        ],
+      },
       upcoming('compras', 'Compras'),
       upcoming('vehiculos', 'Vehículos'),
       upcoming('salud', 'Salud'),

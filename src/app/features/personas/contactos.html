@@ -1,0 +1,184 @@
+<section class="apana-card mb-3" aria-labelledby="proximos-cumples">
+  <h2 id="proximos-cumples" class="apana-section-title">
+    <i class="fa-solid fa-cake-candles" aria-hidden="true"></i>Próximos cumpleaños
+  </h2>
+  @if (loading()) {
+    <p class="mb-0" role="status">Cargando…</p>
+  } @else if (upcoming().length === 0) {
+    <p class="mb-0">
+      Nadie cumple años en los próximos 60 días. Agrega el cumpleaños a tus contactos y te lo recordamos aquí, en el Inicio y en la Agenda.
+    </p>
+  } @else {
+    <ul class="list-unstyled d-grid gap-2 mb-0">
+      @for (item of upcoming(); track item.person.id) {
+        <li class="d-flex justify-content-between align-items-center gap-2">
+          <div class="min-w-0">
+            <i class="fa-solid fa-cake-candles cake me-2" aria-hidden="true"></i>
+            <span class="fw-semibold">{{ item.person.nickname || item.person.name }}</span>
+            @if (item.turns !== null) { <span> · cumple {{ item.turns }}</span> }
+          </div>
+          <span class="text-nowrap" [class.today]="item.daysUntil === 0">
+            {{ formatDay(item.date) }} · {{ daysUntilLabel(item.daysUntil) }}
+          </span>
+        </li>
+      }
+    </ul>
+  }
+</section>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div class="flex-grow-1" style="max-width: 22rem">
+    <label class="visually-hidden" for="searchContacts">Buscar contacto</label>
+    <input
+      id="searchContacts"
+      class="form-control form-control-sm"
+      type="search"
+      placeholder="Buscar por nombre o apodo"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+    />
+  </div>
+  <button type="button" class="btn btn-sm btn-primary" (click)="openNew()">
+    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Nuevo contacto
+  </button>
+</div>
+
+@if (status(); as s) {
+  <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
+    {{ s.message }}
+  </div>
+}
+
+@if (formOpen()) {
+  <section class="apana-card mb-3" aria-labelledby="form-contacto">
+    <h2 id="form-contacto" class="apana-section-title">
+      <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ editingId() ? 'Editar contacto' : 'Nuevo contacto' }}
+    </h2>
+    <form class="row g-3" (ngSubmit)="save()">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="cName">Nombre</label>
+        <input id="cName" name="name" class="form-control" maxlength="80" autocomplete="off" [(ngModel)]="draft.name" required />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="cNick">Apodo</label>
+        <input id="cNick" name="nickname" class="form-control" maxlength="40" autocomplete="off" [(ngModel)]="draft.nickname" />
+      </div>
+      <fieldset class="col-12">
+        <legend class="form-label fs-6 mb-2">Cumpleaños</legend>
+        <div class="row g-2">
+          <div class="col-4 col-md-2">
+            <label class="visually-hidden" for="cDay">Día</label>
+            <select id="cDay" name="birthDay" class="form-select" [(ngModel)]="draft.birthDay">
+              <option [ngValue]="null">Día</option>
+              @for (day of dayOptions(); track day) {
+                <option [ngValue]="day">{{ day }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-8 col-md-4">
+            <label class="visually-hidden" for="cMonth">Mes</label>
+            <select id="cMonth" name="birthMonth" class="form-select" [(ngModel)]="draft.birthMonth">
+              <option [ngValue]="null">Mes</option>
+              @for (month of months; track month; let i = $index) {
+                <option [ngValue]="i + 1">{{ month }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="visually-hidden" for="cYear">Año (opcional)</label>
+            <input id="cYear" name="birthYear" class="form-control" inputmode="numeric" maxlength="4" placeholder="Año (opcional)" [(ngModel)]="draft.birthYear" />
+          </div>
+        </div>
+        <div class="form-text">Con el año te mostramos cuántos cumple.</div>
+      </fieldset>
+      <div class="col-12 col-md-4">
+        <label class="form-label" for="cPhone">Teléfono</label>
+        <input id="cPhone" name="phone" type="tel" class="form-control" maxlength="30" placeholder="+56 9 1234 5678" [(ngModel)]="draft.phone" />
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label" for="cEmail">Correo</label>
+        <input id="cEmail" name="email" type="email" class="form-control" maxlength="254" autocomplete="off" [(ngModel)]="draft.email" />
+      </div>
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="cRel">Relación</label>
+        <select id="cRel" name="relationship" class="form-select" [(ngModel)]="draft.relationship">
+          <option value="">Sin indicar</option>
+          @for (rel of relationships; track rel) {
+            <option [value]="rel">{{ relationshipLabels[rel] }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="cNotes">Notas</label>
+        <textarea id="cNotes" name="notes" class="form-control" rows="2" maxlength="500" placeholder="Ideas de regalo, talla, alergias…" [(ngModel)]="draft.notes"></textarea>
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="btn btn-outline-primary" type="button" (click)="formOpen.set(false)">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+@if (!loading()) {
+  @if (contacts().length === 0) {
+    <section class="apana-card">
+      <app-empty-state
+        icon="fa-address-book"
+        title="Aún no tienes contactos"
+        description="Agrega a tu familia y amistades con su cumpleaños para que no se te pase ninguno."
+      />
+    </section>
+  } @else if (rows().length === 0) {
+    <p>No encontramos a nadie con "{{ search() }}".</p>
+  } @else {
+    <section class="apana-card" aria-label="Contactos">
+      <ul class="list-unstyled mb-0">
+        @for (row of rows(); track row.contact.id) {
+          @let contact = row.contact;
+          <li class="d-flex flex-wrap align-items-center gap-3 py-3 border-bottom">
+            <span class="avatar" aria-hidden="true">{{ initials(contact.name) }}</span>
+            <div class="flex-grow-1 min-w-0">
+              <div class="fw-semibold">
+                {{ contact.name }}
+                @if (contact.nickname) { <span class="fw-normal">({{ contact.nickname }})</span> }
+                @if (contact.relationship) {
+                  <span class="badge text-bg-light border ms-1">{{ relationshipLabels[contact.relationship] }}</span>
+                }
+              </div>
+              <div class="small d-flex flex-wrap column-gap-3">
+                @if (row.birthday; as birthday) {
+                  <span>
+                    <i class="fa-solid fa-cake-candles cake me-1" aria-hidden="true"></i>{{ birthdayText(contact) }}
+                    @if (birthday.turns !== null) { · cumple {{ birthday.turns }} }
+                    · {{ daysUntilLabel(birthday.daysUntil) }}
+                  </span>
+                }
+                @if (contact.phone) {
+                  <a [href]="'tel:' + contact.phone"><i class="fa-solid fa-phone me-1" aria-hidden="true"></i>{{ contact.phone }}</a>
+                }
+                @if (contact.email) {
+                  <a class="text-break" [href]="'mailto:' + contact.email"><i class="fa-solid fa-envelope me-1" aria-hidden="true"></i>{{ contact.email }}</a>
+                }
+              </div>
+              @if (contact.notes) {
+                <div class="small mt-1 text-break">{{ contact.notes }}</div>
+              }
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" (click)="openEdit(contact)">Editar</button>
+              @if (confirmDeleteId() === contact.id) {
+                <button type="button" class="btn btn-sm btn-danger" (click)="remove(contact)">Sí, eliminar</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDeleteId.set(null)">No</button>
+              } @else {
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="confirmDeleteId.set(contact.id)" [attr.aria-label]="'Eliminar a ' + contact.name">
+                  <i class="fa-solid fa-trash" aria-hidden="true"></i>
+                </button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+}

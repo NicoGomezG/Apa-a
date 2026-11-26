@@ -208,3 +208,34 @@
   align-items: center;
   gap: 0.35rem;
 }
+
+// --- Cumpleaños ---------------------------------------------------------------
+
+.birthday-icon {
+  color: var(--apana-module-personas);
+}
+
+.birthday-name {
+  display: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--apana-module-personas);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.birthday-dot {
+  font-size: 0.65rem;
+  color: var(--apana-module-personas);
+}
+
+@media (min-width: 768px) {
+  .birthday-name {
+    display: block;
+  }
+  .birthday-dot {
+    display: none;
+  }
+}
