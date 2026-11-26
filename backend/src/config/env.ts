@@ -32,7 +32,9 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = envSchema.safeParse(source);
+  // `CLAVE=` (vacía en .env o en Vercel) cuenta como no definida, no como inválida.
+  const defined = Object.fromEntries(Object.entries(source).filter(([, value]) => value !== undefined && value.trim() !== ''));
+  const parsed = envSchema.safeParse(defined);
   if (!parsed.success) {
     const fields = parsed.error.issues.map((issue) => issue.path.join('.')).join(', ');
     // Se informan los nombres de las variables, nunca sus valores.

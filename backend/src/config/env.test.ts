@@ -32,4 +32,12 @@ describe('loadEnv', () => {
   it('exige la clave secreta en producción', () => {
     expect(() => loadEnv({ ...base, NODE_ENV: 'production' })).toThrow(/SUPABASE_SECRET_KEY/);
   });
+
+  it('una variable vacía (CLAVE=) cuenta como no definida', () => {
+    const env = loadEnv({ ...base, SUPABASE_SECRET_KEY: '', SUPABASE_JWT_SECRET: '  ', CORS_ORIGINS: '' });
+    expect(env.SUPABASE_SECRET_KEY).toBeUndefined();
+    expect(env.SUPABASE_JWT_SECRET).toBeUndefined();
+    expect(env.CORS_ORIGINS).toEqual(['http://localhost:4200']);
+    expect(() => loadEnv({ ...base, NODE_ENV: 'production', SUPABASE_SECRET_KEY: '' })).toThrow(/SUPABASE_SECRET_KEY/);
+  });
 });
