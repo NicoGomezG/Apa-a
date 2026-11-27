@@ -1,5 +1,6 @@
 import type { AppDeps } from '../app.js';
 import type { Env } from '../config/env.js';
+import type { ExchangeRate } from '../lib/exchange-rates.js';
 import type { AuthUser } from '../lib/auth/token-verifier.js';
 import type { AuditEntry } from '../modules/audit/audit.repository.js';
 import type { FinanceRepository } from '../modules/finance/finance.repository.js';
@@ -11,6 +12,8 @@ import type {
   TransactionRecord,
 } from '../modules/finance/finance.types.js';
 import type { Preferences, ProfileRecord } from '../modules/profile/profile.repository.js';
+import { createFakeChat } from './fake-chat.js';
+import { createFakeDebts } from './fake-debts.js';
 import { createFakeFriends, createFakePeople } from './fake-people.js';
 
 export const testEnv: Env = {
@@ -212,6 +215,10 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
   const people = createFakePeople();
   const profiles = new Map<string, ProfileRecord>();
   const friends = createFakeFriends(people, profiles);
+  /** Tipos de cambio de prueba: USD a 950 pesos; otras monedas sin valor. */
+  const rates = new Map<string, ExchangeRate>([['USD', { currency: 'USD', micros: 950_000_000n, date: '2026-11-25' }]]);
+  const debts = createFakeDebts(people);
+  const chat = createFakeChat(people, () => (now ? now() : new Date()));
   const auditLog: AuditEntry[] = [];
   const deletedAuthUsers: string[] = [];
   let failAuthDelete = false;
@@ -276,12 +283,21 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
         profiles.delete(userId);
         finance.clearUser(userId);
         friends.clearUser(userId);
+        chat.clearUser(userId);
+        debts.clearUser(userId);
         people.clearUser(userId);
       },
     },
     finance: finance.repo,
     people: people.repo,
     friends: friends.repo,
+    chat: chat.repo,
+    debts: debts.repo,
+    rates: {
+      async toClp(currency) {
+        return rates.get(currency) ?? null;
+      },
+    },
     now,
   };
 
@@ -290,6 +306,9 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
     finance,
     people,
     friends,
+    chat,
+    debts,
+    rates,
     profiles,
     auditLog,
     deletedAuthUsers,

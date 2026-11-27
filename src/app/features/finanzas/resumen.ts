@@ -8,15 +8,16 @@ import { EmptyState } from '../../shared/ui/empty-state';
 import { categoryIcon, categoryLabel, type Account, type FinanceSummary } from './finance.models';
 import { FinanceService } from './finance.service';
 import { MonthPicker } from '../../shared/ui/month-picker';
+import { TipoCambio } from './tipo-cambio';
 
 @Component({
   selector: 'app-finanzas-resumen',
-  imports: [RouterLink, MoneyPipe, MonthPicker, EmptyState],
+  imports: [RouterLink, MoneyPipe, MonthPicker, EmptyState, TipoCambio],
   templateUrl: './resumen.html',
   styles: `
     .big-number {
       font-size: clamp(1.75rem, 4vw, 2.25rem);
-      font-weight: 800;
+      font-weight: 600;
       line-height: 1.1;
     }
     .bar {
@@ -35,7 +36,7 @@ import { MonthPicker } from '../../shared/ui/month-picker';
       height: 2rem;
       display: grid;
       place-items: center;
-      border-radius: 0.5rem;
+      border-radius: 10px;
       background: var(--bs-light);
       color: var(--apana-section-color);
       flex-shrink: 0;
@@ -56,6 +57,12 @@ export class FinanzasResumen {
   protected readonly categoryIcon = categoryIcon;
   protected readonly formatDay = formatDay;
   protected readonly formatMonth = formatMonth;
+
+  /** '948520000' → '$948,52' (solo para mostrar; los cálculos van en el backend con enteros). */
+  protected rateLabel(micros: string): string {
+    const value = Number(BigInt(micros)) / 1_000_000;
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  }
 
   protected readonly isEmpty = computed(() => {
     const summary = this.summary();

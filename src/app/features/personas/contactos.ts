@@ -55,14 +55,14 @@ const normalize = (value: string) =>
       border-radius: 999px;
       background: var(--apana-section-color);
       color: #fff;
-      font-weight: 700;
+      font-weight: 600;
       flex-shrink: 0;
     }
     .cake {
       color: var(--apana-section-color);
     }
     .today {
-      font-weight: 700;
+      font-weight: 600;
       color: var(--apana-section-color);
     }
   `,

@@ -41,6 +41,12 @@ export type AuditAction =
   | 'friends.invite.created'
   | 'friends.invite.revoked'
   | 'friends.accepted'
+  | 'chat.message.sent'
+  | 'finance.debt.created'
+  | 'finance.debt.updated'
+  | 'finance.debt.deleted'
+  | 'finance.debt.payment.created'
+  | 'finance.debt.payment.deleted'
   | 'friends.removed'
   | 'friends.contact.linked';
 

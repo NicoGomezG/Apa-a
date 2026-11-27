@@ -42,20 +42,39 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
         <ul class="list-unstyled d-grid gap-3 mb-0">
           @for (invite of invites(); track invite.id) {
             <li>
-              <div class="input-group input-group-sm">
-                <label class="visually-hidden" [for]="'inv-' + invite.id">Enlace de invitación</label>
-                <input class="form-control" readonly [id]="'inv-' + invite.id" [value]="inviteUrl(invite)" (focus)="$any($event.target).select()" />
+              <label class="visually-hidden" [for]="'inv-' + invite.id">Enlace de invitación</label>
+              <input class="form-control form-control-sm mb-2" readonly [id]="'inv-' + invite.id" [value]="inviteUrl(invite)" (focus)="$any($event.target).select()" />
+              <div class="d-flex flex-wrap gap-2">
                 @if (canShare) {
-                  <button type="button" class="btn btn-primary" (click)="share(invite)">Compartir</button>
+                  <button type="button" class="btn btn-sm btn-primary" (click)="share(invite)">Compartir</button>
                 }
-                <button type="button" class="btn" [class.btn-primary]="!canShare" [class.btn-outline-primary]="canShare" (click)="copy(invite)">
+                <button type="button" class="btn btn-sm" [class.btn-primary]="!canShare" [class.btn-outline-primary]="canShare" (click)="copy(invite)">
                   {{ copied() === invite.id ? '¡Copiado!' : 'Copiar' }}
                 </button>
-                <button type="button" class="btn btn-outline-danger" (click)="revoke(invite)" [disabled]="busy()" aria-label="Anular invitación">
-                  <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary"
+                  (click)="toggleQr(invite)"
+                  [attr.aria-expanded]="qrFor() === invite.id"
+                  [attr.aria-controls]="'qr-' + invite.id"
+                >
+                  <i class="fa-solid fa-qrcode me-1" aria-hidden="true"></i>QR
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-auto" (click)="revoke(invite)" [disabled]="busy()">
+                  <i class="fa-solid fa-xmark me-1" aria-hidden="true"></i>Anular
                 </button>
               </div>
               <div class="small mt-1">Vence el {{ formatDay(invite.expiresAt.slice(0, 10)) }}</div>
+              @if (qrFor() === invite.id) {
+                <div class="qr-panel mt-2" [id]="'qr-' + invite.id">
+                  @if (qrImage(); as image) {
+                    <img [src]="image" width="240" height="240" alt="Código QR de la invitación" />
+                  } @else {
+                    <div class="qr-placeholder" role="status">Generando…</div>
+                  }
+                  <p class="small mb-0">Pídele a tu amigo que lo escanee con la cámara del celular. Sirve una sola vez.</p>
+                </div>
+              }
             </li>
           }
         </ul>
@@ -112,7 +131,10 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
                   <div class="form-text">Así no aparece dos veces en la Agenda.</div>
                 </div>
               }
-              <div class="mt-auto">
+              <div class="mt-auto d-flex flex-wrap align-items-center gap-2">
+                <a class="btn btn-sm btn-primary" [routerLink]="['/personas/mensajes/amigo', row.friend.userId]">
+                  <i class="fa-solid fa-comment me-1" aria-hidden="true"></i>Mensaje
+                </a>
                 @if (confirmRemove() === row.friend.userId) {
                   <span class="small me-2">¿Dejar de ser amigos? Ya no verá tus grupos.</span>
                   <button type="button" class="btn btn-sm btn-danger me-1" (click)="remove(row.friend)" [disabled]="busy()">Sí</button>
@@ -140,13 +162,34 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
       border-radius: 50%;
       background: var(--apana-section-color);
       color: #fff;
-      font-weight: 700;
+      font-weight: 600;
     }
     .min-w-0 {
       min-width: 0;
     }
     .cake {
       color: var(--apana-section-color);
+    }
+    .qr-panel {
+      display: grid;
+      justify-items: center;
+      gap: 0.5rem;
+      padding: 1.25rem;
+      border: 1px solid var(--bs-border-color);
+      border-radius: 10px;
+      background: #fff;
+      text-align: center;
+    }
+    .qr-panel img,
+    .qr-placeholder {
+      width: 240px;
+      max-width: 100%;
+      height: auto;
+      aspect-ratio: 1;
+    }
+    .qr-placeholder {
+      display: grid;
+      place-items: center;
     }
   `,
 })
@@ -167,6 +210,8 @@ export class PersonasAmigos {
   protected readonly status = signal<Status>(null);
   protected readonly copied = signal<string | null>(null);
   protected readonly confirmRemove = signal<string | null>(null);
+  protected readonly qrFor = signal<string | null>(null);
+  protected readonly qrImage = signal<string | null>(null);
 
   private readonly today = todayIn(this.profile.timezone());
 
@@ -234,6 +279,7 @@ export class PersonasAmigos {
     await this.run(async () => {
       await this.people.revokeInvite(invite.id);
       this.invites.update((list) => list.filter((item) => item.id !== invite.id));
+      if (this.qrFor() === invite.id) this.qrFor.set(null);
     }, 'Anulamos la invitación: el enlace ya no funciona.');
   }
 
@@ -244,6 +290,24 @@ export class PersonasAmigos {
       setTimeout(() => this.copied.set(null), 2000);
     } catch {
       this.status.set({ kind: 'error', message: 'No pudimos copiar. Selecciona el enlace y cópialo a mano.' });
+    }
+  }
+
+  /** El QR se dibuja en el navegador: el enlace es de un solo uso y no debe pasar por servicios externos. */
+  protected async toggleQr(invite: FriendInvite): Promise<void> {
+    if (this.qrFor() === invite.id) {
+      this.qrFor.set(null);
+      return;
+    }
+    this.qrFor.set(invite.id);
+    this.qrImage.set(null);
+    try {
+      const { toDataURL } = await import('qrcode');
+      const image = await toDataURL(this.inviteUrl(invite), { width: 480, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#0a0a0a', light: '#ffffff' } });
+      if (this.qrFor() === invite.id) this.qrImage.set(image);
+    } catch {
+      this.qrFor.set(null);
+      this.status.set({ kind: 'error', message: 'No pudimos generar el código QR. Usa el enlace.' });
     }
   }
 

@@ -60,7 +60,7 @@
             <thead>
               <tr>
                 <th scope="col">Mes</th>
-                <th scope="col" class="text-end">Suscripciones</th>
+                <th scope="col" class="text-end"><span class="d-none d-sm-inline">Suscripciones</span><span class="d-sm-none" aria-hidden="true">Suscr.</span><span class="visually-hidden d-sm-none">Suscripciones</span></th>
                 <th scope="col" class="text-end">Cuotas</th>
                 <th scope="col" class="text-end">Total</th>
               </tr>
@@ -79,7 +79,14 @@
         </div>
         @for (foreign of s.foreignSubscriptions; track foreign.currency) {
           <p class="small text-secondary mt-2 mb-0">
-            Además, {{ foreign.amount | money: foreign.currency }} en suscripciones en {{ foreign.currency }} este mes.
+            @if (foreign.converted !== null && foreign.rate) {
+              Incluye {{ foreign.amount | money: foreign.currency }} en suscripciones en {{ foreign.currency }} este mes
+              (≈ {{ foreign.converted | money: s.currency }}), al {{ foreign.currency === 'USD' ? 'dólar' : 'euro' }} observado
+              del {{ formatDay(foreign.rate.date) }}: {{ rateLabel(foreign.rate.micros) }}. Los meses siguientes usan ese mismo valor.
+            } @else {
+              Además, {{ foreign.amount | money: foreign.currency }} en suscripciones en {{ foreign.currency }} este mes, sin
+              convertir: no pudimos obtener el tipo de cambio.
+            }
           </p>
         }
       </section>
@@ -202,3 +209,8 @@
     </div>
   }
 }
+
+<!-- Siempre visible, aunque no haya datos: no depende del mes ni de tus movimientos. -->
+<div class="mt-3">
+  <app-tipo-cambio />
+</div>

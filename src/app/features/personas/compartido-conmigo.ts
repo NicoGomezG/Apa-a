@@ -34,13 +34,18 @@ interface PaymentDraft {
     @if (loading()) {
       <p role="status">Cargando…</p>
     } @else if (detail(); as d) {
-      <header class="mb-3">
+      <header class="mb-3 d-flex flex-wrap justify-content-between align-items-start gap-3">
+        <div>
         <h2 class="h4 mb-1">{{ d.group.name }}</h2>
         <p class="mb-0">
           Grupo de {{ d.ownerName || 'tu amigo' }} ·
           @if (d.group.date) { {{ formatDay(d.group.date, true) }} · }
           Total <strong>{{ d.totalSpent | money: d.group.currency }}</strong>
         </p>
+        </div>
+        <a class="btn btn-outline-primary" [routerLink]="['/personas/mensajes/grupo', d.group.id]">
+          <i class="fa-solid fa-comments me-1" aria-hidden="true"></i>Chat del grupo
+        </a>
       </header>
 
       <div class="row g-3">
@@ -175,7 +180,7 @@ interface PaymentDraft {
     }
     .reminder {
       padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
+      border-radius: 10px;
       border: 1px solid var(--bs-warning);
       background: var(--bs-warning-bg-subtle);
       color: var(--bs-warning-text-emphasis);

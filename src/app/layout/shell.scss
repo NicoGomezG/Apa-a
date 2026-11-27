@@ -27,7 +27,7 @@
     display: flex;
     flex-direction: column;
     padding: 1.25rem 0.75rem;
-    background: $apana-surface;
+    background: $apana-surface-alt;
     border-right: 1px solid $apana-border;
   }
 }
@@ -37,9 +37,9 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.6rem 0.75rem;
-  border-radius: $apana-radius-sm;
+  border-radius: $apana-radius;
   color: $apana-ink;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
 
   i {
@@ -49,12 +49,12 @@
   }
 
   &:hover {
-    background: $apana-bg;
+    background: $apana-hover;
   }
 
   &.active {
-    background: $apana-blue-tint;
-    color: $apana-navy;
+    background: $apana-active;
+    color: $apana-ink;
   }
 }
 
@@ -86,9 +86,9 @@
   height: 2.5rem;
   border-radius: 50%;
   border: 0;
-  background: $apana-navy;
+  background: $apana-primary;
   color: #fff;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.9rem;
 
   &::after {
@@ -132,7 +132,7 @@
     background: none;
     color: $apana-ink-soft;
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: 500;
     text-decoration: none;
 
     i {
@@ -140,10 +140,10 @@
     }
 
     &.active {
-      color: $apana-navy;
+      color: $apana-ink;
 
       i {
-        color: var(--apana-section-color, #{$apana-navy});
+        color: var(--apana-section-color, #{$apana-ink});
       }
     }
   }
@@ -158,10 +158,41 @@
   padding: 0.5rem;
   background: $apana-surface;
   border: 1px solid $apana-border;
-  border-radius: $apana-radius;
-  box-shadow: 0 8px 24px rgba($apana-ink, 0.15);
+  border-radius: $apana-radius-lg;
+  box-shadow: $apana-shadow-pop;
 
   @include media-breakpoint-up(lg) {
     display: none;
   }
+}
+
+// Contador de mensajes sin leer (Personas).
+.nav-badge {
+  margin-left: auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: $apana-radius-pill;
+  background: $apana-danger;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.nav-icon {
+  position: relative;
+  display: inline-block;
+}
+
+.nav-dot {
+  position: absolute;
+  top: -0.1rem;
+  right: -0.35rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: $apana-danger;
+  box-shadow: 0 0 0 2px $apana-surface;
 }

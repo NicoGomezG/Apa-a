@@ -1,0 +1,316 @@
+@if (status(); as s) {
+  <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
+    {{ s.message }}
+  </div>
+}
+
+<!-- Totales -->
+<div class="totals mb-3">
+  <section class="apana-card total-card" aria-labelledby="te-deben">
+    <h2 id="te-deben" class="text-caption mb-0">
+      <i class="fa-solid fa-arrow-down me-1" aria-hidden="true"></i>Te deben
+    </h2>
+    @if (owedTotals().length === 0) {
+      <span class="display-stat">{{ 0 | money: draft.currency }}</span>
+    } @else {
+      @for (total of owedTotals(); track total.currency) {
+        <span class="display-stat">{{ total.amount | money: total.currency }}</span>
+      }
+    }
+    <span class="small">{{ owedPeople() === 1 ? '1 persona' : owedPeople() + ' personas' }}</span>
+  </section>
+  <section class="apana-card total-card" aria-labelledby="debes">
+    <h2 id="debes" class="text-caption mb-0">
+      <i class="fa-solid fa-arrow-up me-1" aria-hidden="true"></i>Debes
+    </h2>
+    @if (oweTotals().length === 0) {
+      <span class="display-stat">{{ 0 | money: draft.currency }}</span>
+    } @else {
+      @for (total of oweTotals(); track total.currency) {
+        <span class="display-stat">{{ total.amount | money: total.currency }}</span>
+      }
+    }
+    <span class="small">{{ owePeople() === 1 ? '1 persona' : owePeople() + ' personas' }}</span>
+  </section>
+</div>
+
+<!-- Selector y acciones -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div class="btn-group" role="group" aria-label="Qué deudas ver">
+    <button type="button" class="btn btn-sm" [class.btn-primary]="view() === 'owed_to_me'" [class.btn-outline-primary]="view() !== 'owed_to_me'"
+            [attr.aria-pressed]="view() === 'owed_to_me'" (click)="view.set('owed_to_me'); expandedId.set(null)">
+      Me deben
+    </button>
+    <button type="button" class="btn btn-sm" [class.btn-primary]="view() === 'i_owe'" [class.btn-outline-primary]="view() !== 'i_owe'"
+            [attr.aria-pressed]="view() === 'i_owe'" (click)="view.set('i_owe'); expandedId.set(null)">
+      Debo
+    </button>
+  </div>
+  <div class="d-flex flex-wrap align-items-center gap-3">
+    @if (paidCount() > 0) {
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" role="switch" id="showPaid" [checked]="showPaid()" (change)="showPaid.set(!showPaid())" />
+        <label class="form-check-label small" for="showPaid">Ver pagadas ({{ paidCount() }})</label>
+      </div>
+    }
+    <button type="button" class="btn btn-sm btn-primary" (click)="openNew()">
+      <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Anotar deuda
+    </button>
+  </div>
+</div>
+
+<!-- Formulario -->
+@if (formOpen()) {
+  <section class="apana-card mb-3" aria-labelledby="form-deuda">
+    <h2 id="form-deuda" class="apana-section-title">
+      <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ editingId() ? 'Editar deuda' : 'Anotar deuda' }}
+    </h2>
+    <form class="row g-3" (ngSubmit)="save()">
+      @if (!editingId()) {
+        <fieldset class="col-12">
+          <legend class="form-label fs-6 mb-1">¿Quién le debe a quién?</legend>
+          <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="direction" id="dirOwed" value="owed_to_me" [(ngModel)]="draft.direction" />
+            <label class="btn btn-sm btn-outline-primary" for="dirOwed">Me deben a mí</label>
+            <input type="radio" class="btn-check" name="direction" id="dirOwe" value="i_owe" [(ngModel)]="draft.direction" />
+            <label class="btn btn-sm btn-outline-primary" for="dirOwe">Yo debo</label>
+          </div>
+        </fieldset>
+      }
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="debtPerson">{{ draft.direction === 'owed_to_me' ? '¿Quién te debe?' : '¿A quién le debes?' }}</label>
+        @if (contacts().length > 0) {
+          <select id="debtPerson" name="person" class="form-select" [(ngModel)]="draft.person" required>
+            <option value="" disabled>Elige un contacto</option>
+            @for (contact of contacts(); track contact.id) {
+              <option [value]="contact.id">{{ contact.name }}</option>
+            }
+            <option [value]="other">Otra persona…</option>
+          </select>
+        }
+        @if (contacts().length === 0 || draft.person === other) {
+          <input
+            [id]="contacts().length === 0 ? 'debtPerson' : 'debtPersonName'"
+            name="personName"
+            class="form-control"
+            [class.mt-2]="contacts().length > 0"
+            maxlength="80"
+            placeholder="Nombre"
+            [attr.aria-label]="contacts().length > 0 ? 'Nombre de la persona' : null"
+            [(ngModel)]="draft.personName"
+            required
+          />
+        }
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="debtReason">¿Por qué? <span class="fw-normal">(opcional)</span></label>
+        <input id="debtReason" name="description" class="form-control" maxlength="200" placeholder="Ej: Entradas del concierto" [(ngModel)]="draft.description" />
+      </div>
+      <div class="col-7 col-md-4">
+        <label class="form-label" for="debtAmount">Monto</label>
+        <input id="debtAmount" name="amount" class="form-control" inputmode="decimal" placeholder="45.000" [(ngModel)]="draft.amount" required />
+      </div>
+      <div class="col-5 col-md-3">
+        <label class="form-label" for="debtCurrency">Moneda</label>
+        <select id="debtCurrency" name="currency" class="form-select" [(ngModel)]="draft.currency" [disabled]="!!editingId()">
+          @for (currency of currencies; track currency) {
+            <option [value]="currency">{{ currency }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-5">
+        <label class="form-label" for="debtDate">¿Desde cuándo?</label>
+        <input id="debtDate" name="date" type="date" class="form-control" [max]="today()" [(ngModel)]="draft.date" required />
+      </div>
+      <div class="col-12 d-flex flex-wrap gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="btn btn-light" type="button" (click)="closeForm()">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+<!-- Lista -->
+@if (loading()) {
+  <p role="status">Cargando…</p>
+} @else if (rows().length === 0) {
+  <section class="apana-card">
+    <app-empty-state
+      [icon]="view() === 'owed_to_me' ? 'fa-hand-holding-dollar' : 'fa-face-smile'"
+      [title]="view() === 'owed_to_me' ? 'Nadie te debe plata' : 'No le debes plata a nadie'"
+      [description]="paidCount() > 0 ? 'Las que ya se pagaron están en «Ver pagadas».' : 'Anota un préstamo para saber cuánto falta y hace cuántos días que no pagan.'"
+    />
+  </section>
+} @else {
+  <section class="apana-card p-0" [attr.aria-label]="view() === 'owed_to_me' ? 'Personas que te deben' : 'Personas a las que les debes'">
+    <!-- Escritorio y tablet: tabla -->
+    <div class="table-responsive d-none d-md-block">
+      <table class="table debt-table mb-0">
+        <thead>
+          <tr>
+            <th scope="col" class="ps-4">{{ view() === 'owed_to_me' ? 'Quién te debe' : 'A quién le debes' }}</th>
+            <th scope="col">Por qué</th>
+            <th scope="col" class="text-end">Monto</th>
+            <th scope="col" class="text-end">Falta</th>
+            <th scope="col">Desde</th>
+            @if (view() === 'i_owe') {
+              <th scope="col">Último pago</th>
+            }
+            <th scope="col">{{ view() === 'owed_to_me' ? 'Días sin pagarte' : 'Días sin pagar' }}</th>
+            <th scope="col" class="pe-4"><span class="visually-hidden">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.debt.id) {
+            @let debt = row.debt;
+            <tr [class.paid-row]="debt.status === 'paid'">
+              <td class="ps-4 fw-semibold">{{ debt.personName }}</td>
+              <td class="reason">{{ debt.description || '—' }}</td>
+              <td class="text-end">{{ debt.amount | money: debt.currency }}</td>
+              <td class="text-end fw-semibold">
+                @if (debt.status === 'paid') {
+                  <span class="badge text-bg-light"><i class="fa-solid fa-check me-1" aria-hidden="true"></i>Pagada</span>
+                } @else {
+                  {{ debt.pending | money: debt.currency }}
+                }
+              </td>
+              <td>{{ formatDay(debt.date, true) }}</td>
+              @if (view() === 'i_owe') {
+                <td>{{ debt.lastPaymentDate ? formatDay(debt.lastPaymentDate, true) : '—' }}</td>
+              }
+              <td>
+                @if (row.days !== null) {
+                  <span [class.late]="isLate(row.days)">{{ daysLabel(row.days) }}</span>
+                } @else if (debt.paidAt) {
+                  Pagada el {{ formatDay(debt.paidAt) }}<span class="small"> · en {{ daysLabel(row.tookDays ?? 0) }}</span>
+                }
+              </td>
+              <td class="pe-4 text-end">
+                <ng-container *ngTemplateOutlet="actions; context: { $implicit: debt }" />
+              </td>
+            </tr>
+            @if (expandedId() === debt.id) {
+              <tr>
+                <td [attr.colspan]="view() === 'i_owe' ? 8 : 7" class="px-4">
+                  <ng-container *ngTemplateOutlet="paymentsPanel; context: { $implicit: debt }" />
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Celular: tarjetas -->
+    <ul class="list-unstyled mb-0 d-md-none">
+      @for (row of rows(); track row.debt.id) {
+        @let debt = row.debt;
+        <li class="p-3" [class.border-top]="!$first" [class.paid-row]="debt.status === 'paid'">
+          <div class="d-flex justify-content-between gap-2">
+            <div class="min-w-0">
+              <div class="fw-semibold text-truncate">{{ debt.personName }}</div>
+              @if (debt.description) {
+                <div class="small">{{ debt.description }}</div>
+              }
+            </div>
+            <div class="text-end flex-none">
+              @if (debt.status === 'paid') {
+                <span class="badge text-bg-light"><i class="fa-solid fa-check me-1" aria-hidden="true"></i>Pagada</span>
+              } @else {
+                <div class="fw-semibold">{{ debt.pending | money: debt.currency }}</div>
+                @if (debt.pending !== debt.amount) {
+                  <div class="small">de {{ debt.amount | money: debt.currency }}</div>
+                }
+              }
+            </div>
+          </div>
+          <div class="small mt-1">
+            Desde el {{ formatDay(debt.date, true) }} ·
+            @if (row.days !== null) {
+              <span [class.late]="isLate(row.days)">{{ daysLabel(row.days) }} sin {{ view() === 'owed_to_me' ? 'pagarte' : 'pagar' }}</span>
+              @if (debt.lastPaymentDate) {
+                · último pago el {{ formatDay(debt.lastPaymentDate) }}
+              }
+            } @else if (debt.paidAt) {
+              pagada el {{ formatDay(debt.paidAt) }} (en {{ daysLabel(row.tookDays ?? 0) }})
+            }
+          </div>
+          <div class="mt-2">
+            <ng-container *ngTemplateOutlet="actions; context: { $implicit: debt }" />
+          </div>
+          @if (expandedId() === debt.id) {
+            <div class="mt-2">
+              <ng-container *ngTemplateOutlet="paymentsPanel; context: { $implicit: debt }" />
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  </section>
+}
+
+<!-- Acciones de una deuda -->
+<ng-template #actions let-debt>
+  @if (confirmDelete() === debt.id) {
+    <span class="small me-1">¿Borrar?</span>
+    <button type="button" class="btn btn-sm btn-danger me-1" (click)="remove(debt)" [disabled]="busy()">Sí</button>
+    <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDelete.set(null)">No</button>
+  } @else {
+    <div class="d-inline-flex flex-wrap gap-1">
+      <button type="button" class="btn btn-sm" [class.btn-primary]="debt.status === 'pending'" [class.btn-outline-primary]="debt.status === 'paid'"
+              (click)="toggle(debt)" [attr.aria-expanded]="expandedId() === debt.id">
+        @if (debt.status === 'pending') {
+          <i class="fa-solid fa-money-bill-wave me-1" aria-hidden="true"></i>Pagos
+        } @else {
+          Ver pagos
+        }
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="edit(debt)" aria-label="Editar">
+        <i class="fa-solid fa-pen" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-danger" (click)="confirmDelete.set(debt.id)" aria-label="Borrar">
+        <i class="fa-solid fa-trash" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+</ng-template>
+
+<!-- Pagos (abonos) de una deuda -->
+<ng-template #paymentsPanel let-debt>
+  <div class="payments">
+    @if (debt.payments.length === 0) {
+      <p class="small mb-2">Aún no hay pagos.</p>
+    } @else {
+      <ul class="list-unstyled small mb-2 d-grid gap-1">
+        @for (payment of debt.payments; track payment.id) {
+          <li class="d-flex align-items-center gap-2">
+            <span>{{ formatDay(payment.date, true) }}</span>
+            <span class="fw-semibold ms-auto">{{ payment.amount | money: debt.currency }}</span>
+            <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="removePayment(debt, payment.id)" [disabled]="busy()"
+                    aria-label="Borrar este pago">
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+    @if (debt.status === 'pending') {
+      <form class="row g-2 align-items-end" (ngSubmit)="addPayment(debt)">
+        <div class="col-6 col-md-4">
+          <label class="form-label small mb-1" [for]="'payAmount-' + debt.id">
+            {{ debt.direction === 'owed_to_me' ? 'Te pagó' : 'Pagaste' }}
+          </label>
+          <input [id]="'payAmount-' + debt.id" name="amount" class="form-control form-control-sm" inputmode="decimal" [(ngModel)]="paymentDraft.amount" required />
+        </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label small mb-1" [for]="'payDate-' + debt.id">El día</label>
+          <input [id]="'payDate-' + debt.id" name="date" type="date" class="form-control form-control-sm" [min]="debt.date" [max]="today()"
+                 [(ngModel)]="paymentDraft.date" required />
+        </div>
+        <div class="col-12 col-md-4">
+          <button type="submit" class="btn btn-sm btn-primary w-100" [disabled]="busy()">Anotar pago</button>
+        </div>
+      </form>
+    }
+  </div>
+</ng-template>

@@ -26,7 +26,7 @@
 }
 .stat-value {
   font-size: 1.35rem;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 // --- Calendario --------------------------------------------------------------
@@ -49,7 +49,7 @@
 .calendar-head {
   text-align: center;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 600;
   padding: 0.25rem 0;
 }
 
@@ -61,7 +61,7 @@
   min-height: 3.25rem;
   padding: 0.3rem;
   border: 1px solid var(--bs-border-color);
-  border-radius: 0.5rem;
+  border-radius: 10px;
   background: var(--bs-body-bg);
   color: var(--bs-body-color);
   text-align: left;
@@ -102,7 +102,7 @@
   min-width: 1.6rem;
   height: 1.6rem;
   border-radius: 999px;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.9rem;
 }
 
@@ -128,7 +128,7 @@
   font-weight: 600;
   line-height: 1.2;
   padding: 0.1rem 0.3rem;
-  border-radius: 0.35rem;
+  border-radius: 6px;
   background: var(--bs-tertiary-bg);
   min-width: 0;
 
@@ -194,7 +194,7 @@
 .payment-date {
   width: 3.5rem;
   text-align: left;
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: none;
 }
 

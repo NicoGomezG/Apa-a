@@ -40,9 +40,11 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
   del cliente. Cada endpoint nuevo lleva una prueba de que el usuario B no ve lo del A.
 - Única excepción sin sesión: `GET /api/public/splits/:token` (enlace de invitados, código de
   192 bits, revocable, sin datos de contacto). Cualquier ruta pública nueva necesita el mismo cuidado.
-- Única excepción al filtro por dueño: `/api/people/shared/*` (grupos de otro donde el dueño te
+- Excepciones al filtro por dueño: `/api/people/shared/*` (grupos de otro donde el dueño te
   enlazó como amigo). Filtra por `split_participants.linked_user_id = currentUser`, nunca expone
   `contactId`, `shareToken` ni ids de cuenta, y solo deja informar pagos propios (`confirmed=false`).
+  Y `/api/chats/*`: amigos (clave de la conversación armada con `currentUser` + amigo; escribir exige
+  amistad vigente) y grupos (dueño o `linked_user_id`). Los mensajes nunca llevan `authorId`.
 - Amigos: solo ven nombre y cumpleaños (día y mes) del otro. Nunca correo, año ni otros módulos.
 - Dinero: `BigInt` en unidad mínima + `currency`. Nunca `Float`/`number` con decimales.
 - Fechas: `timestamptz` para instantes, `date` para días; zona por defecto `America/Santiago`.
@@ -57,11 +59,19 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 ## Diseño
 
 - Español de Chile, tuteo estándar. Formatos: `core/format/format.ts` (CLP, fechas por zona).
-- Sin texto gris: el secundario usa `$apana-ink-soft`. Cada módulo tiene su color
-  (`$apana-modules`, CSS `--apana-module-<clave>`). Sin degradados.
+- Base monocromática estilo shadcn/ui (tokens en `_tokens.scss`): canvas `#f5f5f5`, tarjetas
+  blancas con hairline `#e5e5e5` + sombra sutil, barra lateral `#fafafa`, acción principal negra
+  (`btn-primary` = `#171717`), `btn-outline-primary` = borde hairline, inputs con relleno gris.
+  Tipografía Geist (`@fontsource-variable/geist`), cuerpo 14px, títulos peso 600 con tracking negativo.
+- Radios: 18px botones/inputs/badges, 24px tarjetas/modales, 10px anidados, 6px pequeños.
+- Texto secundario = `$apana-ink-soft` (`#525252`); nunca más claro que `$apana-mid` (`#737373`,
+  solo placeholders).
+- Color solo como acento: cada módulo tiene el suyo (`$apana-modules`, CSS `--apana-module-<clave>`)
+  para íconos, avatares y detalles pequeños; pestañas/toggles activos van en negro. Verde/rojo solo
+  para estados. Sin degradados.
 - Responsivo siempre: móvil (barra inferior), tablet, escritorio (barra lateral).
 - Estados vacíos honestos: nunca cifras de ejemplo en el dashboard.
-- Rojo de domingos/feriados = `--bs-danger`.
+- Rojo de domingos/feriados = `--bs-danger` (`#e7000b`, también destructivo/errores).
 
 ## Estado (actualizar al cerrar cada cambio)
 
@@ -71,7 +81,9 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 | Finanzas: cuentas, movimientos, cuotas, estados de cuenta, suscripciones (correo + notas), resumen, importación BCh/CMR/Santander | ✅ | `modules/finance`, `features/finanzas` |
 | Agenda: calendario, feriados CL, pagos del mes con estado pagado/por pagar/sin confirmar, cumpleaños | ✅ | `features/agenda`, `core/calendar`, `GET /finance/calendar` |
 | Personas: contactos + cumpleaños, gastos compartidos (iguales / montos / ítems de boleta, propina 10 %), saldos, pagos, enlace invitados | ✅ (sin probar en navegador) | `modules/people`, `features/personas`, `features/public` |
-| Personas etapa 3: amigos (invitación por enlace), cumpleaños propio, grupos compartidos con amigos (ven, informan pagos, el dueño confirma, recordatorio) | ✅ (sin probar en navegador) | `modules/friends`, `people.shared.routes.ts`, `features/personas/amigos.ts`, `compartido-conmigo.ts`, `unirse.ts` |
+| Personas etapa 3: amigos (invitación por enlace o QR), cumpleaños propio, grupos compartidos con amigos (ven, informan pagos, el dueño confirma, recordatorio) | ✅ (sin probar en navegador) | `modules/friends`, `people.shared.routes.ts`, `features/personas/amigos.ts`, `compartido-conmigo.ts`, `unirse.ts` |
+| Finanzas → Deudas: me deben / debo, con abonos, días sin pagar y fecha de pago | ✅ (sin probar en navegador; migración pendiente) | `modules/debts` (`/finance/debts`), `features/finanzas/deudas.*` |
+| Chat: entre amigos (ex amigos = solo lectura) y por grupo de gastos, no leídos en la navegación | ✅ (sin probar en navegador; migración pendiente) | `modules/chat`, `features/personas/chat-thread.ts`, `mensajes.ts`, `chat.service.ts` |
 | Compras, Vehículos, Salud | ⏳ | `layout/navigation.ts` → `UPCOMING_MODULES` |
 
 ## Mapa del código (lo que no es obvio)
@@ -81,6 +93,11 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 - Regla de cuotas: última cuota = total − (N−1)×cuota salvo que el banco informe la N/N
   (`lastInstallmentAmount`). Mes de la cuota n = mes del vencimiento del estado de cuenta.
 - Gasto del mes = `expense` por fecha + cuotas que vencen ese mes. `transfer` y `card_payment` no son gasto.
+- Gasto base: las suscripciones en USD/EUR se suman convertidas a CLP con el dólar/euro observado
+  (`lib/exchange-rates.ts`, API pública mindicador.cl, caché 6 h, timeout 3 s; si cae, usa el último
+  valor o deja la suscripción fuera del total y lo dice). Tipo de cambio como entero ×1e6, nunca float.
+  Solo cuando la moneda principal es CLP; los meses siguientes usan el valor de hoy. El mismo valor se
+  muestra en el apartado "Tipo de cambio" (`features/finanzas/tipo-cambio.ts`, al final del Resumen).
 - Reparto de gastos: `backend/src/modules/people/split.math.ts` es la fuente de verdad. Hay una
   **copia** en `src/app/features/personas/split.math.ts` para la vista previa: si cambias uno,
   cambia el otro (las pruebas de ambos usan los mismos casos).
@@ -94,6 +111,15 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
   y el enlace público no los muestra. Recordatorio = `split_participants.reminded_at` (1 cada 20 h).
 - Cumpleaños de Agenda/Inicio: `PeopleService.birthdayPeople()` junta contactos + amigos sin duplicar
   (`features/personas/friends.ts`). Validación compartida del cumpleaños: `backend/src/lib/birthday.ts`.
+- Deudas: saldo, estado y `paidAt` se derivan de los abonos (`debtView` en `debts.routes.ts`), no se
+  guardan. Días sin pagar = hoy − (último abono ?? fecha de la deuda), calculado en el front. El nombre
+  de la persona se guarda aunque venga de un contacto (si se borra el contacto, `contact_id` queda null).
+- Chat: `thread_key` = `friend:<a>:<b>` (par ordenado) o `group:<id>` (CHECK en la base). Sin tiempo
+  real: el front pregunta cada 4 s con la conversación abierta (`?after=`, inclusive, se dedupe por id),
+  15 s en la lista y 30 s para el contador (`ChatService.watchUnread`, en el Shell). Responder marca
+  como leído. Los mensajes de grupo caen con el grupo (FK cascade); la bitácora no guarda el texto.
+- QR de invitación: `qrcode` (carga diferida) genera la imagen en el navegador; nunca usar un servicio
+  externo de QR (el enlace es un código de un solo uso). `qrcode`/`dijkstrajs` van en `allowedCommonJsDependencies`.
 - Destino tras registrarse/Google: `core/auth/pending-redirect.ts` (localStorage), lo usa `auth-callback`.
 
 ## Trampas conocidas
@@ -111,13 +137,17 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 - `prisma migrate diff --from-config-datasource` compara con la base real (que puede ir atrasada).
   Para generar solo lo nuevo: copiar el schema antes de editarlo y usar `--from-schema <copia>`.
 - npm 11 bloquea scripts de instalación: tras `npm ci` en `backend`, correr `npx prisma generate`.
+- Tras cambiar `schema.prisma` (o hacer pull de un cambio): `npx prisma generate` en `backend` y reiniciar
+  `dev:api`. Síntoma de cliente viejo: `Unknown field … for select` o `prisma.<modelo>` undefined.
 
 ## Pendientes
 
-- Aplicar migraciones `20261125120000_subscription_details`, `20261126000000_people` y
-  `20261127000000_friends`, luego push.
+- Aplicar la migración `20261129000000_debts`, luego push (la del chat ya está aplicada).
+- Probar el chat en navegador con dos cuentas (amigos y grupo, móvil y escritorio).
+- Chat, después: aviso push/correo, borrar mensajes propios, Supabase Realtime si el sondeo queda corto.
 - Probar en navegador: importación (worker de pdf.js), Agenda, Personas, el enlace público y
   amigos (invitar → aceptar con otra cuenta, incluido registro nuevo desde el enlace).
+- Revisar en navegador el rediseño monocromático (todas las pantallas, móvil y escritorio).
 - Recordatorios solo dentro de la app: falta aviso por correo/push.
 - `SUPABASE_SECRET_KEY` vacía en `backend/.env` (sin ella no funciona eliminar cuenta; obligatoria en producción).
 - Ideas acordadas para después: marcar pagos como "revisado" a mano, foto de boleta con IA,
@@ -125,6 +155,13 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Historial (más reciente arriba, una línea por cambio)
 
+- 2026-11-27 · Celular: invitaciones con botones bajo el enlace, chat al alto de la pantalla, gasto base sin scroll.
+- 2026-11-27 · Finanzas → Deudas: quién me debe y a quién le debo, con abonos y días sin pagar.
+- 2026-11-27 · Finanzas → Resumen: apartado "Tipo de cambio" (dólar y euro observados con variación), `GET /finance/exchange-rates`.
+- 2026-11-27 · Gasto base suma suscripciones en USD/EUR convertidas al dólar/euro observado.
+- 2026-11-26 · Chat entre amigos y por grupo de gastos (sondeo, no leídos, exportación y borrado de cuenta).
+- 2026-11-26 · Amigos: QR de la invitación (generado en el navegador).
+- 2026-11-26 · Rediseño monocromático (DESIGN.md estilo shadcn/ui, híbrido con colores de módulo), fuente Geist.
 - 2026-11-25 · Amigos: invitación por enlace, cumpleaños propio compartido, grupos compartidos con pagos por confirmar y recordatorio.
 - 2026-11-26 · Personas: contactos/cumpleaños, gastos compartidos estilo Tricount, enlace invitados.
 - 2026-11-25 · Suscripciones con correo y notas; lista base de tarjetas; fix variables `.env` vacías.

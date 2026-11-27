@@ -1,7 +1,7 @@
 @import 'tokens';
 
 // --- Bootstrap con los tokens de Apaña -------------------------------------
-$primary: $apana-navy;
+$primary: $apana-primary;
 $secondary: $apana-ink-soft;
 $success: $apana-success;
 $warning: $apana-warning;
@@ -13,19 +13,73 @@ $dark: $apana-ink;
 $body-bg: $apana-bg;
 $body-color: $apana-ink;
 $body-secondary-color: $apana-ink-soft;
-$link-color: $apana-blue;
+$link-color: $apana-ink;
+$link-hover-color: $apana-primary;
 $border-color: $apana-border;
-$font-family-sans-serif: 'Plus Jakarta Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-$headings-font-weight: 700;
+$font-family-sans-serif: $apana-font;
+$font-size-base: 0.875rem; // 14px
+$line-height-base: 1.43;
+$h1-font-size: 1.875rem; // 30px
+$h2-font-size: 1.5rem; // 24px
+$h3-font-size: 1.125rem; // 18px
+$h4-font-size: 1rem;
+$h5-font-size: 0.875rem;
+$h6-font-size: 0.75rem;
+$headings-font-weight: 600;
 $headings-color: $apana-ink;
-$border-radius: $apana-radius-sm;
-$border-radius-lg: $apana-radius;
+$font-weight-bold: 600;
+$font-weight-bolder: 600;
+
+$border-radius-sm: $apana-radius-sm;
+$border-radius: $apana-radius;
+$border-radius-lg: $apana-radius-lg;
+$border-radius-pill: 50rem;
+
 $card-border-color: $apana-border;
-$card-border-radius: $apana-radius;
-$input-border-color: $apana-border;
-$input-placeholder-color: $apana-ink-soft;
-$form-label-font-weight: 600;
-$btn-font-weight: 600;
+$card-border-radius: $apana-radius-lg;
+$card-spacer-y: 1.25rem;
+$card-spacer-x: 1.25rem;
+$card-box-shadow: $apana-shadow;
+$card-cap-bg: transparent;
+$modal-content-border-radius: $apana-radius-lg;
+$modal-content-border-color: $apana-border;
+$dropdown-border-color: $apana-border;
+$dropdown-link-hover-bg: $apana-bg;
+$dropdown-box-shadow: $apana-shadow-pop;
+$list-group-border-color: $apana-border;
+$alert-border-radius: $apana-radius;
+
+$btn-font-weight: 500;
+$btn-padding-x: 1rem;
+$btn-border-radius: $apana-radius-pill;
+$btn-border-radius-sm: $apana-radius-pill;
+$btn-border-radius-lg: $apana-radius-pill;
+
+$input-bg: $apana-bg;
+$input-disabled-bg: $apana-surface-alt;
+$input-border-color: transparent;
+$input-focus-bg: $apana-surface;
+$input-focus-border-color: $apana-border;
+$input-focus-box-shadow: 0 0 0 3px rgba($apana-ink, 0.1);
+$input-placeholder-color: $apana-mid;
+$input-border-radius: $apana-radius-pill;
+$input-border-radius-sm: $apana-radius-pill;
+$input-border-radius-lg: $apana-radius-pill;
+$input-padding-x: 0.75rem;
+$form-select-border-radius: $apana-radius-pill;
+$form-check-input-border-color: #a3a3a3;
+$form-check-input-checked-bg-color: $apana-primary;
+$form-check-input-focus-box-shadow: 0 0 0 3px rgba($apana-ink, 0.1);
+$form-switch-focus-color: $apana-ink-soft;
+$form-label-font-weight: 500;
+
+$badge-font-weight: 500;
+$badge-border-radius: $apana-radius-pill;
+$badge-padding-x: 0.6em;
+
+$nav-pills-border-radius: $apana-radius-pill;
+$nav-pills-link-active-bg: $apana-primary;
+
 $enable-shadows: false;
 $enable-gradients: false;
 
@@ -45,29 +99,75 @@ body {
 
 body {
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01" on, "cv11" on;
 }
 
-// Ningún texto en gris: .text-muted / .text-secondary usan el tono azulado.
+// Títulos con tracking ajustado (más apretado mientras más grande).
+h1, .h1 { letter-spacing: -0.025em; line-height: 1.2; }
+h2, .h2 { letter-spacing: -0.025em; line-height: 1.33; }
+h3, .h3 { line-height: 1.56; }
+.display-stat {
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+.text-caption {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: $apana-ink-soft;
+}
+
+// En móvil los inputs van a 16px para que iOS no haga zoom al enfocarlos.
+@include media-breakpoint-down(md) {
+  .form-control,
+  .form-select {
+    font-size: 1rem;
+  }
+}
+
+// Texto secundario: siempre $apana-ink-soft (gris oscuro con contraste AA de sobra).
 .text-muted,
 .text-secondary,
 .form-text {
   color: $apana-ink-soft !important;
 }
 
-.btn-accent {
-  --bs-btn-color: #{$apana-navy};
-  --bs-btn-bg: #{$apana-coral};
-  --bs-btn-border-color: #{$apana-coral};
-  --bs-btn-hover-color: #{$apana-navy};
-  --bs-btn-hover-bg: #{darken($apana-coral, 6%)};
-  --bs-btn-hover-border-color: #{darken($apana-coral, 6%)};
-  --bs-btn-active-color: #{$apana-navy};
-  --bs-btn-active-bg: #{darken($apana-coral, 10%)};
-  --bs-btn-active-border-color: #{darken($apana-coral, 10%)};
+// Botón con borde hairline (terciario): el más usado dentro de tarjetas.
+.btn-outline-primary,
+.btn-outline-secondary {
+  --bs-btn-color: #{$apana-ink};
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: #{$apana-border};
+  --bs-btn-hover-color: #{$apana-ink};
+  --bs-btn-hover-bg: #{$apana-bg};
+  --bs-btn-hover-border-color: #{$apana-border};
+  --bs-btn-active-color: #{$apana-ink};
+  --bs-btn-active-bg: #{darken($apana-bg, 4%)};
+  --bs-btn-active-border-color: #{$apana-border};
+  --bs-btn-disabled-color: #{$apana-ink-soft};
+  --bs-btn-disabled-bg: transparent;
+  --bs-btn-disabled-border-color: #{$apana-border};
+}
+
+// Botón secundario tonal (Cancelar, Volver).
+.btn-light {
+  --bs-btn-border-color: #{$apana-bg};
+  --bs-btn-hover-border-color: #{darken($apana-bg, 4%)};
+}
+
+.card {
+  box-shadow: $apana-shadow;
+}
+
+.badge.text-bg-light {
+  border: 1px solid $apana-border;
 }
 
 :focus-visible {
-  outline: 3px solid rgba($apana-blue, 0.45);
+  outline: 2px solid rgba($apana-ink, 0.55);
   outline-offset: 2px;
 }
 
@@ -75,7 +175,7 @@ body {
 .apana-card {
   background: $apana-surface;
   border: 1px solid $apana-border;
-  border-radius: $apana-radius;
+  border-radius: $apana-radius-lg;
   box-shadow: $apana-shadow;
   padding: 1.25rem;
 }
@@ -85,12 +185,12 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   margin-bottom: 0.75rem;
 
   .fa-solid,
   .fa-regular {
-    color: var(--apana-section-color, #{$apana-navy});
+    color: var(--apana-section-color, #{$apana-ink});
   }
 }
 
@@ -124,9 +224,10 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  font-weight: 800;
+  font-weight: 600;
   font-size: 1.35rem;
-  color: $apana-navy;
+  letter-spacing: -0.025em;
+  color: $apana-ink;
   text-decoration: none;
 
   img {

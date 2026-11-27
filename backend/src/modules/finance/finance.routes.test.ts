@@ -326,9 +326,28 @@ describe('resumen', () => {
     expect(summary.today).toBe('2026-11-25');
     // Gasto de noviembre: metro + cuota 2 de Schilling (28.250). El pago de la tarjeta no cuenta.
     expect(summary.spent.total).toBe(String(1_710 + 28_250));
-    expect(summary.base[0]).toEqual({ month: '2026-11', subscriptions: '6990', installments: '28250', total: '35240' });
+    expect(summary.base[0]).toEqual({ month: '2026-11', subscriptions: '6990', converted: '0', installments: '28250', total: '35240' });
     expect(summary.cards[0].lastStatement.totalBilled).toBe('375160');
     expect(summary.upcoming.map((item: { label: string }) => item.label)).toEqual(['CMR Falabella', 'Spotify']);
+  });
+
+  it('suma al gasto base las suscripciones en USD convertidas a pesos', async () => {
+    await call(ALICE, 'POST', '/subscriptions', { name: 'Spotify', amount: '6990', frequency: 'monthly', startDate: '2026-03-12' });
+    await call(ALICE, 'POST', '/subscriptions', { name: 'ChatGPT', amount: '2000', currency: 'USD', frequency: 'monthly', startDate: '2026-03-05' });
+    const summary = (await call(ALICE, 'GET', '/summary')).json();
+    // US$20 × 950 (dólar de prueba) = 19.000.
+    expect(summary.base[0]).toMatchObject({ subscriptions: String(6_990 + 19_000), converted: '19000' });
+    expect(summary.foreignSubscriptions).toEqual([
+      { currency: 'USD', amount: '2000', converted: '19000', rate: { micros: '950000000', date: '2026-11-25' } },
+    ]);
+  });
+
+  it('muestra el dólar observado (y omite las monedas sin valor)', async () => {
+    const res = await call(ALICE, 'GET', '/exchange-rates');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ rates: [{ currency: 'USD', micros: '950000000', date: '2026-11-25' }] });
+    const anonymous = await app.inject({ method: 'GET', url: '/api/finance/exchange-rates' });
+    expect(anonymous.statusCode).toBe(401);
   });
 
   it('B ve un resumen vacío aunque A tenga datos', async () => {

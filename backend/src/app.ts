@@ -4,12 +4,17 @@ import rateLimit from '@fastify/rate-limit';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import type { Env } from './config/env.js';
+import type { ExchangeRates } from './lib/exchange-rates.js';
 import type { AuthAdmin } from './lib/auth/auth-admin.js';
 import type { TokenVerifier } from './lib/auth/token-verifier.js';
 import { registerErrorHandler } from './lib/errors.js';
 import type { AccountRepository } from './modules/account/account.repository.js';
 import { accountRoutes } from './modules/account/account.routes.js';
+import type { ChatRepository } from './modules/chat/chat.repository.js';
+import { chatRoutes } from './modules/chat/chat.routes.js';
 import type { AuditRepository } from './modules/audit/audit.repository.js';
+import type { DebtsRepository } from './modules/debts/debts.repository.js';
+import { debtsRoutes } from './modules/debts/debts.routes.js';
 import type { FinanceRepository } from './modules/finance/finance.repository.js';
 import { financeRoutes } from './modules/finance/finance.routes.js';
 import type { FriendsRepository } from './modules/friends/friends.repository.js';
@@ -30,6 +35,10 @@ export interface AppDeps {
   finance: FinanceRepository;
   people: PeopleRepository;
   friends: FriendsRepository;
+  chat: ChatRepository;
+  debts: DebtsRepository;
+  /** Tipo de cambio a CLP (dólar y euro observados). */
+  rates: ExchangeRates;
   /** Reloj inyectable (pruebas). Por defecto, la hora real. */
   now?: () => Date;
 }
@@ -77,9 +86,11 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
       await api.register(profileRoutes, deps);
       await api.register(accountRoutes, deps);
       await api.register(financeRoutes, { ...deps, prefix: '/finance' });
+      await api.register(debtsRoutes, { ...deps, prefix: '/finance/debts' });
       await api.register(peopleRoutes, { ...deps, prefix: '/people' });
       await api.register(sharedGroupRoutes, { ...deps, prefix: '/people/shared' });
       await api.register(friendsRoutes, { ...deps, prefix: '/friends' });
+      await api.register(chatRoutes, { ...deps, prefix: '/chats' });
       // Sin sesión: enlaces de solo lectura para invitados.
       await api.register(publicSplitRoutes, { people: deps.people, prefix: '/public' });
     },

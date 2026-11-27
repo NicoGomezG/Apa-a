@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { type ExchangeRate, type ExchangeRates, RATE_CURRENCIES } from '../../lib/exchange-rates.js';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { badRequest, notFound } from '../../lib/errors.js';
@@ -35,6 +36,8 @@ export interface FinanceRoutesDeps {
   finance: FinanceRepository;
   profiles: ProfileRepository;
   audit: AuditRepository;
+  /** Opcional: sin él, las suscripciones en otra moneda no se convierten. */
+  rates?: ExchangeRates;
   /** Reloj inyectable para pruebas. */
   now?: () => Date;
 }
@@ -535,6 +538,13 @@ export const financeRoutes: FastifyPluginAsyncZod<FinanceRoutesDeps> = async (ap
     },
   );
 
+  // --- Tipo de cambio (dólar y euro observados) --------------------------------------
+  app.get('/exchange-rates', async (request) => {
+    currentUser(request);
+    const found = deps.rates ? await Promise.all(RATE_CURRENCIES.map((code) => deps.rates!.toClp(code))) : [];
+    return toJson({ rates: found.filter((rate): rate is ExchangeRate => rate !== null) });
+  });
+
   // --- Resumen ----------------------------------------------------------------------
   app.get('/summary', { schema: { querystring: summaryQuery } }, async (request) => {
     const { user, profile, today: todayDay } = await today(request);
@@ -552,8 +562,17 @@ export const financeRoutes: FastifyPluginAsyncZod<FinanceRoutesDeps> = async (ap
       deps.finance.listStatements(user.id),
     ]);
 
+    // Tipo de cambio solo para las monedas de suscripciones activas (hoy: a CLP).
+    const rates = new Map<string, ExchangeRate>();
+    if (deps.rates && profile.preferences.currency === 'CLP') {
+      const codes = [...new Set(subscriptions.filter((sub) => sub.active && sub.currency !== 'CLP').map((sub) => sub.currency))];
+      const found = await Promise.all(codes.map((code) => deps.rates!.toClp(code)));
+      for (const rate of found) if (rate) rates.set(rate.currency, rate);
+    }
+
     return toJson(
       computeSummary({
+        rates,
         month: target,
         today: todayDay,
         currency: profile.preferences.currency,

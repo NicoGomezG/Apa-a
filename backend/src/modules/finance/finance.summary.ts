@@ -1,3 +1,4 @@
+import { convertToClp, type ExchangeRate } from '../../lib/exchange-rates.js';
 import {
   addDays,
   addMonths,
@@ -32,6 +33,11 @@ export interface SummaryInput {
   plans: InstallmentPlanRecord[];
   subscriptions: SubscriptionRecord[];
   statements: StatementRecord[];
+  /**
+   * Tipos de cambio a la moneda principal (hoy solo a CLP). Las suscripciones en esas monedas
+   * se suman convertidas al gasto base; las demás se informan aparte.
+   */
+  rates?: Map<string, ExchangeRate>;
 }
 
 export interface UpcomingPayment {
@@ -115,22 +121,44 @@ export function computeSummary(input: SummaryInput) {
 
   // --- Gasto base: suscripciones + cuotas, mes consultado y siguientes ------
   const activeSubscriptions = input.subscriptions.filter((sub) => sub.active);
+  const rateFor = (code: string) => (currency === 'CLP' ? (input.rates?.get(code) ?? null) : null);
+  /** Monto en la moneda principal: igual si ya lo está, convertido si hay tipo de cambio, null si no. */
+  const inMain = (sub: SubscriptionRecord) => {
+    if (sub.currency === currency) return sub.amount;
+    const rate = rateFor(sub.currency);
+    return rate ? convertToClp(sub.amount, sub.currency, rate) : null;
+  };
   const base = Array.from({ length: BASE_MONTHS }, (_, offset) => {
     const target = addMonths(month, offset);
-    const subscriptions = inCurrency(activeSubscriptions)
-      .filter((sub) => subscriptionChargeIn(sub, target) !== null)
-      .reduce((sum, sub) => sum + sub.amount, 0n);
+    let subscriptions = 0n;
+    let converted = 0n;
+    for (const sub of activeSubscriptions) {
+      if (subscriptionChargeIn(sub, target) === null) continue;
+      const amount = inMain(sub);
+      if (amount === null) continue;
+      subscriptions += amount;
+      if (sub.currency !== currency) converted += amount;
+    }
     const installments = inCurrency(installmentsIn(input.plans, target)).reduce((sum, item) => sum + item.amount, 0n);
-    return { month: target, subscriptions, installments, total: subscriptions + installments };
+    return { month: target, subscriptions, converted, installments, total: subscriptions + installments };
   });
 
-  // Suscripciones en otras monedas: se informan aparte, sin convertir.
+  // Suscripciones del mes en otras monedas: con su equivalente si se pudo convertir.
   const foreignSubscriptions = new Map<string, bigint>();
   for (const sub of activeSubscriptions) {
     if (sub.currency === currency) continue;
     if (subscriptionChargeIn(sub, month) === null) continue;
     add(foreignSubscriptions, sub.currency, sub.amount);
   }
+  const foreign = [...foreignSubscriptions].map(([code, amount]) => {
+    const rate = rateFor(code);
+    return {
+      currency: code,
+      amount,
+      converted: rate ? convertToClp(amount, code, rate) : null,
+      rate: rate ? { micros: rate.micros, date: rate.date } : null,
+    };
+  });
 
   // --- Tarjetas: ciclo abierto y último estado de cuenta --------------------
   const cards = input.accounts
@@ -225,7 +253,7 @@ export function computeSummary(input: SummaryInput) {
     },
     installments: monthInstallments,
     base,
-    foreignSubscriptions: [...foreignSubscriptions].map(([code, amount]) => ({ currency: code, amount })),
+    foreignSubscriptions: foreign,
     cards,
     upcoming,
   };

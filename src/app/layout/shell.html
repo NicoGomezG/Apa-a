@@ -17,6 +17,9 @@
         >
           <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i>
           {{ item.label }}
+          @if (item.key === 'personas' && chat.unread() > 0) {
+            <span class="nav-badge">{{ chat.unread() }}<span class="visually-hidden"> mensajes sin leer</span></span>
+          }
         </a>
       }
     </nav>
@@ -85,7 +88,12 @@
         [routerLinkActiveOptions]="{ exact: item.path === '/' }"
         [style.--apana-section-color]="'var(--apana-module-' + item.key + ')'"
       >
-        <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i>
+        <span class="nav-icon">
+          <i class="fa-solid {{ item.icon }}" aria-hidden="true"></i>
+          @if (item.key === 'personas' && chat.unread() > 0) {
+            <span class="nav-dot"><span class="visually-hidden">Hay mensajes sin leer</span></span>
+          }
+        </span>
         <span>{{ item.label }}</span>
       </a>
     }

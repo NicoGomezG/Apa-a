@@ -7,6 +7,7 @@ const TABS = [
   { path: 'movimientos', label: 'Movimientos', icon: 'fa-list' },
   { path: 'cuentas', label: 'Cuentas', icon: 'fa-building-columns' },
   { path: 'suscripciones', label: 'Suscripciones', icon: 'fa-repeat' },
+  { path: 'deudas', label: 'Deudas', icon: 'fa-hand-holding-dollar' },
   { path: 'importar', label: 'Importar', icon: 'fa-file-import' },
 ];
 
@@ -53,7 +54,7 @@ const TABS = [
       border: 1px solid var(--bs-border-color);
       background: var(--bs-body-bg);
       color: var(--bs-body-color);
-      font-weight: 600;
+      font-weight: 500;
       font-size: 0.9rem;
       text-decoration: none;
     }
@@ -61,8 +62,8 @@ const TABS = [
       color: var(--apana-section-color);
     }
     .finance-tab.active {
-      background: var(--apana-section-color);
-      border-color: var(--apana-section-color);
+      background: var(--bs-primary);
+      border-color: var(--bs-primary);
       color: #fff;
     }
     .finance-tab.active i {

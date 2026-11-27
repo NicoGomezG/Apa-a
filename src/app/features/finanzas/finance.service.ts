@@ -3,6 +3,9 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment.generated';
 import type {
+  Debt,
+  DebtPayload,
+  ExchangeRate,
   Account,
   AccountPayload,
   FinanceCalendar,
@@ -35,6 +38,11 @@ export class FinanceService {
 
   summary(month?: string) {
     return this.get<FinanceSummary>('/summary', { month });
+  }
+
+  /** Dólar y euro observados (pesos por unidad × 1.000.000). */
+  exchangeRates() {
+    return this.get<{ rates: ExchangeRate[] }>('/exchange-rates', {});
   }
 
   // --- Cuentas ---
@@ -88,6 +96,26 @@ export class FinanceService {
   }
   deleteSubscription(id: string) {
     return firstValueFrom(this.http.delete<void>(`${this.api}/subscriptions/${id}`));
+  }
+
+  // --- Deudas ---
+  debts() {
+    return this.get<Debt[]>('/debts');
+  }
+  createDebt(payload: DebtPayload) {
+    return firstValueFrom(this.http.post<Debt>(`${this.api}/debts`, payload));
+  }
+  updateDebt(id: string, payload: Partial<Omit<DebtPayload, 'direction' | 'currency'>>) {
+    return firstValueFrom(this.http.patch<Debt>(`${this.api}/debts/${id}`, payload));
+  }
+  deleteDebt(id: string) {
+    return firstValueFrom(this.http.delete<void>(`${this.api}/debts/${id}`));
+  }
+  addDebtPayment(id: string, payload: { amount: string; date: string }) {
+    return firstValueFrom(this.http.post<Debt>(`${this.api}/debts/${id}/payments`, payload));
+  }
+  deleteDebtPayment(id: string, paymentId: string) {
+    return firstValueFrom(this.http.delete<Debt>(`${this.api}/debts/${id}/payments/${paymentId}`));
   }
 
   // --- Importación ---

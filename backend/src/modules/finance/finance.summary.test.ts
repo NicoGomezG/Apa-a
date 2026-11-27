@@ -235,7 +235,46 @@ describe('resumen', () => {
       ['2027-01', 69_000n, 10_000n, 79_000n],
       ['2027-02', 9_000n, 10_000n, 19_000n],
     ]);
-    expect(summary.foreignSubscriptions).toEqual([{ currency: 'USD', amount: 999n }]);
+    // Sin tipo de cambio, el USD queda fuera del total y se informa aparte.
+    expect(summary.foreignSubscriptions).toEqual([{ currency: 'USD', amount: 999n, converted: null, rate: null }]);
+  });
+
+  it('gasto base: suscripciones en USD se suman convertidas al dólar observado', () => {
+    const rate = { currency: 'USD', micros: 950_000_000n, date: '2026-11-25' };
+    const summary = computeSummary({
+      ...base,
+      transactions: [],
+      plans: [],
+      rates: new Map([['USD', rate]]),
+      subscriptions: [
+        subscription({ amount: 9_000n }),
+        subscription({ amount: 999n, currency: 'USD' }), // US$9,99 × 950 = 9.490,5 → 9.491
+        subscription({ amount: 2_000n, currency: 'USD', frequency: 'yearly', startDate: '2026-01-15' }), // solo enero
+        subscription({ amount: 500n, currency: 'EUR' }), // sin valor: fuera del total
+      ],
+    });
+    expect(summary.base.slice(0, 3).map((row) => [row.month, row.subscriptions, row.converted, row.total])).toEqual([
+      ['2026-11', 18_491n, 9_491n, 18_491n],
+      ['2026-12', 18_491n, 9_491n, 18_491n],
+      ['2027-01', 37_491n, 28_491n, 37_491n],
+    ]);
+    expect(summary.foreignSubscriptions).toEqual([
+      { currency: 'USD', amount: 999n, converted: 9_491n, rate: { micros: 950_000_000n, date: '2026-11-25' } },
+      { currency: 'EUR', amount: 500n, converted: null, rate: null },
+    ]);
+  });
+
+  it('sin moneda principal CLP no se convierte nada', () => {
+    const summary = computeSummary({
+      ...base,
+      currency: 'USD',
+      transactions: [],
+      plans: [],
+      rates: new Map([['USD', { currency: 'USD', micros: 950_000_000n, date: '2026-11-25' }]]),
+      subscriptions: [subscription({ amount: 9_000n })], // en CLP
+    });
+    expect(summary.base[0]!.subscriptions).toBe(0n);
+    expect(summary.foreignSubscriptions[0]!.converted).toBeNull();
   });
 
   it('tarjeta: gasto del ciclo abierto, último estado y próximos pagos', () => {

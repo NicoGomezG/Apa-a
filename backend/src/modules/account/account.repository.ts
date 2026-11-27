@@ -20,6 +20,9 @@ export function createPrismaAccountRepository(prisma: PrismaClient): AccountRepo
         prisma.installmentPlan.deleteMany({ where: { userId } }),
         prisma.cardStatement.deleteMany({ where: { userId } }),
         prisma.financialAccount.deleteMany({ where: { userId } }),
+        // Deudas: los abonos caen con su deuda, pero se borran por userId igual.
+        prisma.debtPayment.deleteMany({ where: { userId } }),
+        prisma.debt.deleteMany({ where: { userId } }),
         // Amigos: invitaciones, amistades y todo enlace que otras personas tengan hacia esta cuenta.
         prisma.friendInvite.deleteMany({ where: { userId } }),
         prisma.friendship.deleteMany({ where: { OR: [{ userAId: userId }, { userBId: userId }] } }),
@@ -27,6 +30,10 @@ export function createPrismaAccountRepository(prisma: PrismaClient): AccountRepo
         prisma.splitParticipant.updateMany({ where: { linkedUserId: userId }, data: { linkedUserId: null, remindedAt: null } }),
         prisma.splitSettlement.deleteMany({ where: { reportedBy: userId, confirmed: false } }),
         prisma.splitSettlement.updateMany({ where: { reportedBy: userId }, data: { reportedBy: null } }),
+        // Chat: los mensajes propios (en amigos y grupos ajenos) y lo leído. Los del resto en los
+        // grupos propios caen con el grupo (ON DELETE CASCADE).
+        prisma.chatMessage.deleteMany({ where: { authorId: userId } }),
+        prisma.chatRead.deleteMany({ where: { userId } }),
         // Personas: participantes, gastos, ítems, repartos y pagos caen con su grupo.
         prisma.splitGroup.deleteMany({ where: { userId } }),
         prisma.contact.deleteMany({ where: { userId } }),

@@ -54,7 +54,7 @@ interface Draft {
       height: 2.25rem;
       display: grid;
       place-items: center;
-      border-radius: 0.5rem;
+      border-radius: 10px;
       background: var(--bs-light);
       color: var(--apana-section-color);
     }

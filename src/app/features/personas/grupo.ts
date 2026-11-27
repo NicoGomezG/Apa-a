@@ -62,6 +62,8 @@ export class PersonasGrupo {
   protected readonly formatDay = formatDay;
 
   protected readonly detail = signal<GroupDetail | null>(null);
+  /** El chat del grupo sirve si hay al menos un amigo enlazado. */
+  protected readonly hasLinkedFriends = computed(() => this.detail()?.participants.some((p) => p.linkedUserId) ?? false);
   protected readonly contacts = signal<Contact[]>([]);
   protected readonly friends = signal<Friend[]>([]);
   protected readonly loading = signal(true);

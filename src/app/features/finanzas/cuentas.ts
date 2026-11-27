@@ -50,7 +50,7 @@ const emptyDraft = (): AccountDraft => ({
       height: 2.5rem;
       display: grid;
       place-items: center;
-      border-radius: 0.6rem;
+      border-radius: 10px;
       background: var(--apana-section-color);
       color: #fff;
       flex-shrink: 0;

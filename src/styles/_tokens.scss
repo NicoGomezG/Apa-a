@@ -1,42 +1,50 @@
 // Tokens de diseño de Apaña. Única fuente de colores, espacios y radios.
-// Contrastes verificados (WCAG AA): blanco sobre $apana-navy 12.3:1,
-// $apana-ink-soft sobre blanco 8.8:1, $apana-navy sobre $apana-coral 5.9:1,
-// $apana-coral-strong sobre blanco 4.9:1.
-// Regla: el texto secundario usa $apana-ink-soft (azulado), nunca gris.
+// Base monocromática (estilo shadcn/ui): superficies neutras, texto casi negro,
+// acción principal en negro. El color solo aparece como acento de cada módulo
+// y en estados (éxito / aviso / peligro).
+// Contrastes verificados (WCAG AA): $apana-ink sobre blanco 19.8:1,
+// $apana-ink-soft sobre blanco 7.8:1, $apana-mid sobre blanco 4.7:1 (solo
+// placeholders y separadores), $apana-danger sobre blanco 4.8:1.
+// Regla: el texto secundario usa $apana-ink-soft, nunca más claro que $apana-mid.
 
-$apana-navy: #1f2d7a; // marca, color primario
-$apana-blue: #2b3fb0; // enlaces y elementos interactivos
-$apana-blue-tint: #e9ecfb;
-$apana-coral: #ff7a5c; // acento de personalidad (rellenos, con texto navy)
-$apana-coral-strong: #c8432e; // coral para texto o con texto blanco
-$apana-coral-tint: #fff1ec;
-
-$apana-ink: #172036; // texto principal
-$apana-ink-soft: #3e4a66; // texto secundario
-$apana-bg: #f6f7fb; // fondo de la app
-$apana-surface: #ffffff;
-$apana-border: #dde2f0;
+$apana-ink: #0a0a0a; // texto principal, títulos, íconos
+$apana-primary: #171717; // botón principal (relleno), badge sólido
+$apana-ink-soft: #525252; // texto secundario
+$apana-mid: #737373; // placeholders, separadores de migas
+$apana-bg: #f5f5f5; // fondo de la app (canvas), relleno de inputs, botón secundario
+$apana-surface-alt: #fafafa; // barra lateral, variante suave de tarjeta
+$apana-surface: #ffffff; // tarjetas, popovers, modales
+$apana-border: #e5e5e5; // hairline: bordes de tarjetas, inputs y badges
+$apana-hover: rgba(10, 10, 10, 0.05);
+$apana-active: rgba(10, 10, 10, 0.08);
 
 $apana-success: #047857;
 $apana-warning: #b45309;
-$apana-danger: #b91c1c;
-$apana-info: #2b3fb0;
+$apana-danger: #e7000b; // solo destructivo y errores, nunca decorativo
+$apana-info: #171717;
 
-$apana-radius-sm: 0.5rem;
-$apana-radius: 0.75rem;
-$apana-radius-lg: 1rem;
+// Radios: 18px interactivos (botones, inputs, badges), 24px contenedores,
+// 10px anidados, 6px pequeños.
+$apana-radius-sm: 6px;
+$apana-radius: 10px;
+$apana-radius-pill: 18px;
+$apana-radius-lg: 24px;
 
-$apana-shadow: 0 1px 2px rgba(23, 32, 54, 0.06), 0 1px 3px rgba(23, 32, 54, 0.08);
+// Elevación casi imperceptible: hairline + 1px + 2px.
+$apana-shadow: 0 0 0 1px rgba(23, 23, 23, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+$apana-shadow-pop: 0 8px 24px rgba(10, 10, 10, 0.12);
+
+$apana-font: 'Geist Variable', 'Geist', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
 $apana-sidebar-width: 15.5rem;
 $apana-bottom-nav-height: 4rem;
 
-// Color propio de cada módulo (encabezados, íconos, acentos).
+// Color propio de cada módulo (íconos y acentos pequeños; nunca rellenos grandes).
 $apana-modules: (
-  inicio: $apana-navy,
+  inicio: $apana-ink,
   finanzas: #0f766e,
   agenda: #6d28d9,
-  personas: $apana-coral-strong,
+  personas: #c8432e,
   compras: #a16207,
   vehiculos: #1d4ed8,
   salud: #be123c,

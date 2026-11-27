@@ -47,7 +47,7 @@ const SOURCE_LABELS: Record<ParsedImport['source'], string> = {
   styles: `
     .drop {
       border: 2px dashed var(--bs-border-color);
-      border-radius: 0.75rem;
+      border-radius: 24px;
       padding: 2rem 1rem;
       text-align: center;
       background: var(--bs-body-bg);

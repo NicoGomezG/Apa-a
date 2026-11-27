@@ -85,6 +85,11 @@ export const routes: Routes = [
             loadComponent: () => import('./features/finanzas/suscripciones').then((m) => m.FinanzasSuscripciones),
           },
           {
+            path: 'deudas',
+            title: 'Deudas · Finanzas · Apaña',
+            loadComponent: () => import('./features/finanzas/deudas').then((m) => m.FinanzasDeudas),
+          },
+          {
             path: 'importar',
             title: 'Importar · Finanzas · Apaña',
             loadComponent: () => import('./features/finanzas/importar').then((m) => m.FinanzasImportar),
@@ -125,6 +130,16 @@ export const routes: Routes = [
             path: 'amigos',
             title: 'Amigos · Personas · Apaña',
             loadComponent: () => import('./features/personas/amigos').then((m) => m.PersonasAmigos),
+          },
+          {
+            path: 'mensajes',
+            title: 'Mensajes · Personas · Apaña',
+            loadComponent: () => import('./features/personas/mensajes').then((m) => m.PersonasMensajes),
+          },
+          {
+            path: 'mensajes/:kind/:id',
+            title: 'Conversación · Personas · Apaña',
+            loadComponent: () => import('./features/personas/mensajes').then((m) => m.PersonasConversacion),
           },
         ],
       },

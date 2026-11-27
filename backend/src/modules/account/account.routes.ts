@@ -10,6 +10,8 @@ import type { FinanceRepository } from '../finance/finance.repository.js';
 import { toJson } from '../finance/finance.routes.js';
 import type { PeopleRepository } from '../people/people.repository.js';
 import type { FriendsRepository } from '../friends/friends.repository.js';
+import type { ChatRepository } from '../chat/chat.repository.js';
+import type { DebtsRepository } from '../debts/debts.repository.js';
 import type { AccountRepository } from './account.repository.js';
 
 export const DELETE_CONFIRMATION = 'ELIMINAR MI CUENTA';
@@ -24,6 +26,8 @@ export interface AccountRoutesDeps {
   finance: FinanceRepository;
   people: PeopleRepository;
   friends: FriendsRepository;
+  chat: ChatRepository;
+  debts: DebtsRepository;
 }
 
 export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (app, deps) => {
@@ -40,11 +44,19 @@ export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (ap
       const activity = await deps.audit.listForUser(user.id, 1000);
       const finance = await deps.finance.exportAll(user.id);
       const people = await deps.people.exportAll(user.id);
+      const debts = await deps.debts.list(user.id);
       // De cada amigo solo se exporta el vínculo: su nombre y cumpleaños son datos de esa persona.
       const friends = (await deps.friends.listFriends(user.id)).map(({ userId, since, contactId }) => ({
         friendUserId: userId,
         since,
         contactId,
+      }));
+      // Del chat solo lo que escribió la persona: los mensajes de otros son datos de ellos.
+      const chat = (await deps.chat.exportAll(user.id)).map(({ id, threadKey, body, createdAt }) => ({
+        id,
+        conversation: threadKey,
+        body,
+        createdAt,
       }));
       await deps.audit.record({ userId: user.id, action: 'account.exported', entityType: 'profile', entityId: user.id });
 
@@ -54,9 +66,10 @@ export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (ap
         exportedAt: new Date().toISOString(),
         account: { email: user.email },
         profile,
-        finance: toJson(finance),
+        finance: toJson({ ...finance, debts }),
         people: toJson(people),
         friends,
+        chat,
         activity,
       };
     },

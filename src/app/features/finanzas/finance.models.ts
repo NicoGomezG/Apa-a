@@ -225,8 +225,16 @@ export interface FinanceSummary {
     currency: string;
     category: Category | null;
   }[];
-  base: { month: string; subscriptions: string; installments: string; total: string }[];
-  foreignSubscriptions: { currency: string; amount: string }[];
+  /** `subscriptions` ya incluye lo convertido desde otras monedas (`converted`). */
+  base: { month: string; subscriptions: string; converted: string; installments: string; total: string }[];
+  /** Suscripciones del mes en otra moneda; `converted` = equivalente en pesos, null si no hubo tipo de cambio. */
+  foreignSubscriptions: {
+    currency: string;
+    amount: string;
+    converted: string | null;
+    /** Pesos por unidad × 1.000.000 y fecha del valor publicado. */
+    rate: { micros: string; date: string } | null;
+  }[];
   cards: {
     accountId: string;
     name: string;
@@ -346,4 +354,51 @@ export function presetPayload(preset: AccountPreset): AccountPayload {
     billingDay: null,
     paymentDay: null,
   };
+}
+
+/** Tipo de cambio a CLP. Valores en pesos por unidad × 1.000.000 (texto, para no perder precisión). */
+export interface ExchangeRate {
+  currency: string;
+  micros: string;
+  date: string;
+  previous?: { micros: string; date: string };
+}
+
+// --- Deudas (me deben / debo) -------------------------------------------------------
+
+export type DebtDirection = 'owed_to_me' | 'i_owe';
+
+export interface DebtPayment {
+  id: string;
+  amount: string;
+  date: string;
+}
+
+export interface Debt {
+  id: string;
+  direction: DebtDirection;
+  contactId: string | null;
+  personName: string;
+  description: string | null;
+  amount: string;
+  currency: string;
+  /** Desde cuándo se debe. */
+  date: string;
+  payments: DebtPayment[];
+  paid: string;
+  pending: string;
+  status: 'pending' | 'paid';
+  lastPaymentDate: string | null;
+  /** Fecha del abono que dejó la deuda en cero. */
+  paidAt: string | null;
+}
+
+export interface DebtPayload {
+  direction: DebtDirection;
+  contactId: string | null;
+  personName: string | null;
+  description: string | null;
+  amount: string;
+  currency: string;
+  date: string;
 }
