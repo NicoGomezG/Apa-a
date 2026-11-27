@@ -142,6 +142,9 @@ export class PeopleService {
   linkFriendContact(friendId: string, contactId: string | null) {
     return firstValueFrom(this.http.patch<Friend>(`${this.friendsApi}/${friendId}`, { contactId }));
   }
+  setFriendNickname(friendId: string, nickname: string) {
+    return firstValueFrom(this.http.put<Friend>(`${this.friendsApi}/${friendId}/nickname`, { nickname }));
+  }
   removeFriend(friendId: string) {
     return firstValueFrom(this.http.delete<void>(`${this.friendsApi}/${friendId}`));
   }

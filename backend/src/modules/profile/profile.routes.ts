@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import type { AuthUser } from '../../lib/auth/token-verifier.js';
 import { birthdayFields, checkBirthday } from '../../lib/birthday.js';
+import { optionalPhone } from '../../lib/schemas.js';
 import { currentUser } from '../../plugins/auth.js';
 import type { AuditRepository } from '../audit/audit.repository.js';
 import type { ProfileRecord, ProfileRepository } from './profile.repository.js';
@@ -23,6 +24,8 @@ const meSchema = z.object({
   birthDay: z.number().nullable(),
   birthMonth: z.number().nullable(),
   birthYear: z.number().nullable(),
+  phone: z.string().nullable(),
+  sharePhone: z.boolean(),
   createdAt: z.date(),
   preferences: preferencesSchema,
 });
@@ -35,7 +38,7 @@ const displayNameSchema = z
   .nullable();
 
 const updateProfileBody = z
-  .object({ displayName: displayNameSchema.optional(), ...birthdayFields })
+  .object({ displayName: displayNameSchema.optional(), ...birthdayFields, phone: optionalPhone, sharePhone: z.boolean().optional() })
   .refine((body) => Object.keys(body).length > 0, 'Sin cambios');
 
 const updatePreferencesBody = z

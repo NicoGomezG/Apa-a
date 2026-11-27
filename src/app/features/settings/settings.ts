@@ -43,6 +43,8 @@ export class Settings {
   protected birthDay: number | null = null;
   protected birthMonth: number | null = null;
   protected birthYear = '';
+  protected phone = '';
+  protected sharePhone = false;
   protected timezone = '';
   protected currency = '';
   protected readonly email = this.auth.email;
@@ -62,6 +64,8 @@ export class Settings {
       this.birthDay = me.birthDay;
       this.birthMonth = me.birthMonth;
       this.birthYear = me.birthYear ? String(me.birthYear) : '';
+      this.phone = me.phone ?? '';
+      this.sharePhone = me.sharePhone;
       this.timezone = me.preferences.timezone;
       this.currency = me.preferences.currency;
     });
@@ -79,6 +83,8 @@ export class Settings {
         birthDay: this.birthDay,
         birthMonth: this.birthMonth,
         birthYear: year ? Number(year) : null,
+        phone: this.phone.trim(),
+        sharePhone: this.phone.trim() ? this.sharePhone : false,
       });
       return 'Guardamos tu perfil.';
     });

@@ -9,12 +9,17 @@ export interface FriendInviteRecord {
   createdAt: Date;
 }
 
-/** Lo que una persona ve de su amigo: nombre y cumpleaños (día y mes). Nada más. */
+/**
+ * Lo que una persona ve de su amigo: nombre, cumpleaños (día y mes) y teléfono solo si el amigo
+ * eligió compartirlo. El apodo es el del contacto propio enlazado: lo pone uno y el amigo no lo ve.
+ */
 export interface FriendRecord {
   userId: string;
   displayName: string | null;
   birthDay: number | null;
   birthMonth: number | null;
+  phone: string | null;
+  nickname: string | null;
   since: Date;
   /** Contacto propio enlazado a este amigo. */
   contactId: string | null;
@@ -42,6 +47,11 @@ export interface FriendsRepository {
   removeFriend(userId: string, friendId: string): Promise<boolean>;
   /** Enlaza (o desenlaza con null) un contacto propio con un amigo. false si el contacto no existe. */
   linkContact(userId: string, friendId: string, contactId: string | null): Promise<boolean>;
+  /**
+   * Pone (o borra con null) el apodo en el contacto enlazado al amigo. Si no hay contacto enlazado y
+   * el apodo no es null, crea uno con el nombre del amigo y lo enlaza.
+   */
+  setNickname(userId: string, friendId: string, nickname: string | null, friendName: string): Promise<void>;
 }
 
 export const orderedPair = (a: string, b: string) => (a < b ? { userAId: a, userBId: b } : { userAId: b, userBId: a });
@@ -93,12 +103,12 @@ export function createPrismaFriendsRepository(prisma: PrismaClient): FriendsRepo
       const [profiles, contacts] = await Promise.all([
         prisma.profile.findMany({
           where: { id: { in: ids } },
-          select: { id: true, displayName: true, birthDay: true, birthMonth: true },
+          select: { id: true, displayName: true, birthDay: true, birthMonth: true, phone: true, sharePhone: true },
         }),
-        prisma.contact.findMany({ where: { userId, friendUserId: { in: ids } }, select: { id: true, friendUserId: true } }),
+        prisma.contact.findMany({ where: { userId, friendUserId: { in: ids } }, select: { id: true, friendUserId: true, nickname: true } }),
       ]);
       const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
-      const contactByFriend = new Map(contacts.map((contact) => [contact.friendUserId, contact.id]));
+      const contactByFriend = new Map(contacts.map((contact) => [contact.friendUserId, contact]));
       return rows.map((row, index) => {
         const friendId = ids[index]!;
         const profile = profileById.get(friendId);
@@ -107,8 +117,10 @@ export function createPrismaFriendsRepository(prisma: PrismaClient): FriendsRepo
           displayName: profile?.displayName ?? null,
           birthDay: profile?.birthDay ?? null,
           birthMonth: profile?.birthMonth ?? null,
+          phone: profile?.sharePhone ? profile.phone : null,
+          nickname: contactByFriend.get(friendId)?.nickname ?? null,
           since: row.createdAt,
-          contactId: contactByFriend.get(friendId) ?? null,
+          contactId: contactByFriend.get(friendId)?.id ?? null,
         };
       });
     },
@@ -147,6 +159,12 @@ export function createPrismaFriendsRepository(prisma: PrismaClient): FriendsRepo
         if (error instanceof ContactNotFound) return false;
         throw error;
       });
+    },
+
+    async setNickname(userId, friendId, nickname, friendName) {
+      const { count } = await prisma.contact.updateMany({ where: { userId, friendUserId: friendId }, data: { nickname } });
+      if (count > 0 || nickname === null) return;
+      await prisma.contact.create({ data: { userId, friendUserId: friendId, name: friendName, nickname } });
     },
   };
 }

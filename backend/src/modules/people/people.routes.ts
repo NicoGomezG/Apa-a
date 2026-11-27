@@ -3,7 +3,7 @@ import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { birthdayFields, checkBirthday } from '../../lib/birthday.js';
 import { AppError, badRequest, notFound } from '../../lib/errors.js';
-import { day, money, optionalEmail, optionalText, positiveMoney, text } from '../../lib/schemas.js';
+import { day, money, optionalEmail, optionalPhone, optionalText, positiveMoney, text } from '../../lib/schemas.js';
 import { currentUser } from '../../plugins/auth.js';
 import type { AuditAction, AuditRepository } from '../audit/audit.repository.js';
 import type { FriendsRepository } from '../friends/friends.repository.js';
@@ -36,7 +36,7 @@ const contactFields = {
   name: text(80),
   nickname: optionalText(40),
   ...birthdayFields,
-  phone: optionalText(30).refine((value) => !value || /^[+\d\s()-]{6,30}$/.test(value), 'Teléfono inválido'),
+  phone: optionalPhone,
   email: optionalEmail,
   relationship: z.enum(RELATIONSHIPS).nullable().optional(),
   notes: optionalText(500),

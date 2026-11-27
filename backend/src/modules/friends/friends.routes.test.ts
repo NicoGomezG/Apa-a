@@ -150,6 +150,62 @@ describe('cumpleaños propio', () => {
   });
 });
 
+describe('teléfono compartido', () => {
+  it('el amigo ve tu teléfono solo si eliges compartirlo; un tercero nunca', async () => {
+    const saved = await call(ALICE, 'PATCH', '/me', { phone: '+56 9 1234 5678' });
+    expect(saved.json()).toMatchObject({ phone: '+56 9 1234 5678', sharePhone: false });
+    await befriend(ALICE, BOB);
+    expect((await call(BOB, 'GET', '/friends')).json()[0].phone).toBeNull();
+
+    await call(ALICE, 'PATCH', '/me', { sharePhone: true });
+    expect((await call(BOB, 'GET', '/friends')).json()[0].phone).toBe('+56 9 1234 5678');
+    expect(JSON.stringify((await call(CAROL, 'GET', '/friends')).json())).not.toContain('1234');
+
+    // Al terminar la amistad deja de verlo.
+    await call(BOB, 'DELETE', `/friends/${ALICE.id}`);
+    expect(JSON.stringify((await call(BOB, 'GET', '/friends')).json())).not.toContain('1234');
+  });
+
+  it('valida el formato, se borra con texto vacío y la bitácora no guarda el número', async () => {
+    expect((await call(ALICE, 'PATCH', '/me', { phone: 'llámame' })).statusCode).toBe(400);
+    await call(ALICE, 'PATCH', '/me', { phone: '+56 9 1234 5678', sharePhone: true });
+    expect((await call(ALICE, 'PATCH', '/me', { phone: '' })).json().phone).toBeNull();
+    expect(JSON.stringify(fakes.auditLog)).not.toContain('1234');
+  });
+});
+
+describe('apodo de un amigo', () => {
+  it('lo pone uno, crea el contacto enlazado si falta, y el amigo no lo ve', async () => {
+    await call(BOB, 'PATCH', '/me', { displayName: 'Roberto' });
+    await befriend(ALICE, BOB);
+
+    const set = await call(ALICE, 'PUT', `/friends/${BOB.id}/nickname`, { nickname: 'Tito' });
+    expect(set.statusCode).toBe(200);
+    expect(set.json()).toMatchObject({ nickname: 'Tito', displayName: 'Roberto' });
+    const [contact] = (await call(ALICE, 'GET', '/people/contacts')).json();
+    expect(contact).toMatchObject({ name: 'Roberto', nickname: 'Tito', friendUserId: BOB.id });
+    expect(set.json().contactId).toBe(contact.id);
+
+    // Cambiarlo reusa el mismo contacto; vacío lo borra.
+    await call(ALICE, 'PUT', `/friends/${BOB.id}/nickname`, { nickname: 'Robe' });
+    expect((await call(ALICE, 'GET', '/people/contacts')).json()).toHaveLength(1);
+    expect((await call(ALICE, 'PUT', `/friends/${BOB.id}/nickname`, { nickname: '' })).json().nickname).toBeNull();
+    await call(ALICE, 'PUT', `/friends/${BOB.id}/nickname`, { nickname: 'Robe' });
+
+    // Bob no ve cómo le dice Alice, y la bitácora no guarda el apodo.
+    expect(JSON.stringify((await call(BOB, 'GET', '/friends')).json())).not.toContain('Robe');
+    expect(JSON.stringify(fakes.auditLog)).not.toContain('Robe');
+  });
+
+  it('solo para amigos propios', async () => {
+    expect((await call(ALICE, 'PUT', `/friends/${BOB.id}/nickname`, { nickname: 'X' })).statusCode).toBe(404);
+    await befriend(ALICE, BOB);
+    expect((await call(CAROL, 'PUT', `/friends/${BOB.id}/nickname`, { nickname: 'X' })).statusCode).toBe(404);
+    expect((await call(CAROL, 'GET', '/people/contacts')).json()).toEqual([]);
+    expect((await call(ALICE, 'PUT', `/friends/${BOB.id}/nickname`, { nickname: 'x'.repeat(41) })).statusCode).toBe(400);
+  });
+});
+
 describe('grupos compartidos con amigos', () => {
   /** Grupo de Alice con Bob enlazado y un gasto de 30.000 pagado por Alice, en partes iguales entre 3. */
   async function aliceGroupWithBob() {

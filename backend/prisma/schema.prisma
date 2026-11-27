@@ -27,6 +27,9 @@ model Profile {
   birthDay    Int?             @map("birth_day") @db.SmallInt
   birthMonth  Int?             @map("birth_month") @db.SmallInt
   birthYear   Int?             @map("birth_year") @db.SmallInt
+  /// Teléfono propio. Los amigos lo ven solo si sharePhone = true.
+  phone       String?          @db.VarChar(30)
+  sharePhone  Boolean          @default(false) @map("share_phone")
   createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   preferences UserPreferences?

@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { AppError, badRequest, notFound } from '../../lib/errors.js';
+import { optionalText } from '../../lib/schemas.js';
 import { currentUser } from '../../plugins/auth.js';
 import type { AuditAction, AuditRepository } from '../audit/audit.repository.js';
 import { ensureProfile } from '../profile/profile.routes.js';
@@ -27,6 +28,7 @@ const inviteParams = z.object({ id: z.uuid() });
 const codeParams = z.object({ code: z.string() });
 const acceptBody = z.object({ code: z.string() });
 const linkBody = z.object({ contactId: z.uuid().nullable() });
+const nicknameBody = z.object({ nickname: optionalText(40) });
 
 /** Rutas de amistad: invitación por enlace, aceptar, listar, enlazar contacto y eliminar. */
 export const friendsRoutes: FastifyPluginAsyncZod<FriendsRoutesDeps> = async (app, deps) => {
@@ -55,6 +57,18 @@ export const friendsRoutes: FastifyPluginAsyncZod<FriendsRoutesDeps> = async (ap
     await audit(user.id, 'friends.contact.linked', 'friend', friendId);
     const friend = (await deps.friends.listFriends(user.id)).find((item) => item.userId === friendId);
     return friend;
+  });
+
+  /** Apodo propio para el amigo (vive en el contacto enlazado; el amigo no lo ve). */
+  app.put('/:friendId/nickname', { schema: { params: friendParams, body: nicknameBody } }, async (request) => {
+    const user = currentUser(request);
+    const { friendId } = request.params;
+    const friend = (await deps.friends.listFriends(user.id)).find((item) => item.userId === friendId);
+    if (!friend) throw notFound('No encontramos a ese amigo');
+    const nickname = request.body.nickname ?? null;
+    await deps.friends.setNickname(user.id, friendId, nickname, friend.displayName ?? nickname ?? 'Amigo');
+    await audit(user.id, 'friends.nickname.updated', 'friend', friendId);
+    return (await deps.friends.listFriends(user.id)).find((item) => item.userId === friendId);
   });
 
   app.delete('/:friendId', { schema: { params: friendParams } }, async (request, reply) => {

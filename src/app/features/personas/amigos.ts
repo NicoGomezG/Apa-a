@@ -106,13 +106,40 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
             <article class="apana-card h-100 d-grid gap-2">
               <div class="d-flex align-items-center gap-2">
                 <span class="avatar" aria-hidden="true">{{ initial(row.friend) }}</span>
-                <div class="min-w-0">
+                <div class="min-w-0 flex-grow-1">
                   <h3 class="h6 fw-bold mb-0 text-truncate">{{ name(row.friend) }}</h3>
-                  @if (row.contact) {
+                  @if (row.friend.nickname && row.friend.displayName) {
+                    <div class="small text-truncate">{{ row.friend.displayName }}</div>
+                  } @else if (row.contact) {
                     <div class="small text-truncate">En tus contactos: {{ row.contact.name }}</div>
                   }
                 </div>
+                @if (editingNickname() !== row.friend.userId) {
+                  <button type="button" class="btn btn-sm btn-link p-0 flex-none" (click)="startNickname(row.friend)"
+                          [attr.aria-label]="'Apodo para ' + name(row.friend)">
+                    {{ row.friend.nickname ? 'Cambiar apodo' : 'Ponerle apodo' }}
+                  </button>
+                }
               </div>
+              @if (editingNickname() === row.friend.userId) {
+                <form class="d-flex gap-2" (ngSubmit)="saveNickname(row.friend)">
+                  <label class="visually-hidden" [for]="'nick-' + row.friend.userId">Apodo</label>
+                  <input class="form-control form-control-sm" [id]="'nick-' + row.friend.userId" name="nickname" maxlength="40"
+                         placeholder="Cómo le dices" [(ngModel)]="nicknameDraft" />
+                  <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Guardar</button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="editingNickname.set(null)">Cancelar</button>
+                </form>
+                <div class="form-text mt-0">Solo lo ves tú. Déjalo vacío para quitarlo.</div>
+              }
+              @if (row.friend.phone; as phone) {
+                <div class="d-flex flex-wrap align-items-center gap-2 small">
+                  <i class="fa-solid fa-phone cake" aria-hidden="true"></i>
+                  <a [href]="'tel:' + phoneDigits(phone)">{{ phone }}</a>
+                  <a class="btn btn-sm btn-outline-primary py-0" [href]="whatsapp(phone)" target="_blank" rel="noopener">
+                    <i class="fa-brands fa-whatsapp me-1" aria-hidden="true"></i>WhatsApp
+                  </a>
+                </div>
+              }
               <div class="small">
                 @if (row.birthday; as birthday) {
                   <i class="fa-solid fa-cake-candles cake me-1" aria-hidden="true"></i>{{ birthdayText(row.friend) }} ·
@@ -175,6 +202,9 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
     .min-w-0 {
       min-width: 0;
     }
+    .flex-none {
+      flex: none;
+    }
     .cake {
       color: var(--apana-section-color);
     }
@@ -220,6 +250,8 @@ export class PersonasAmigos {
   protected readonly confirmRemove = signal<string | null>(null);
   protected readonly qrFor = signal<string | null>(null);
   protected readonly qrImage = signal<string | null>(null);
+  protected readonly editingNickname = signal<string | null>(null);
+  protected nicknameDraft = '';
 
   private readonly today = todayIn(this.profile.timezone());
 
@@ -360,6 +392,32 @@ export class PersonasAmigos {
       const updated = await this.people.linkFriendContact(friend.userId, contactId);
       this.friends.update((list) => list.map((item) => (item.userId === friend.userId ? updated : item)));
     });
+  }
+
+  protected startNickname(friend: Friend): void {
+    this.nicknameDraft = friend.nickname ?? '';
+    this.editingNickname.set(friend.userId);
+  }
+
+  protected async saveNickname(friend: Friend): Promise<void> {
+    await this.run(async () => {
+      const updated = await this.people.setFriendNickname(friend.userId, this.nicknameDraft.trim());
+      this.friends.update((list) => list.map((item) => (item.userId === friend.userId ? updated : item)));
+      // Si no tenía contacto enlazado, el backend creó uno: recargar para que aparezca en el selector.
+      if (!friend.contactId && updated.contactId) this.contacts.set(await this.people.contacts());
+      this.editingNickname.set(null);
+    });
+  }
+
+  protected phoneDigits(phone: string): string {
+    return phone.replace(/[^\d+]/g, '');
+  }
+
+  /** wa.me pide el número sin + ni espacios. Si viene sin código de país, se asume Chile (+56). */
+  protected whatsapp(phone: string): string {
+    let digits = phone.replace(/\D/g, '');
+    if (!phone.trim().startsWith('+') && digits.length === 9) digits = `56${digits}`;
+    return `https://wa.me/${digits}`;
   }
 
   protected async remove(friend: Friend): Promise<void> {

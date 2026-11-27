@@ -48,7 +48,8 @@ export type AuditAction =
   | 'finance.debt.payment.created'
   | 'finance.debt.payment.deleted'
   | 'friends.removed'
-  | 'friends.contact.linked';
+  | 'friends.contact.linked'
+  | 'friends.nickname.updated';
 
 export interface AuditEntry {
   userId: string | null;

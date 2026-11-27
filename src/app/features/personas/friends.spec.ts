@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { birthdayPeople } from './friends';
+import { birthdayPeople, friendName } from './friends';
 import type { Contact, Friend } from './people.models';
 
 const contact = (data: Partial<Contact>): Contact => ({
@@ -22,9 +22,19 @@ const friend = (data: Partial<Friend>): Friend => ({
   displayName: 'Cami R.',
   birthDay: 3,
   birthMonth: 12,
+  phone: null,
+  nickname: null,
   since: '2026-11-25T12:00:00Z',
   contactId: null,
   ...data,
+});
+
+describe('friendName', () => {
+  it('usa tu apodo si le pusiste uno, si no su nombre', () => {
+    expect(friendName(friend({ nickname: 'Cuca' }))).toBe('Cuca');
+    expect(friendName(friend({ nickname: '  ' }))).toBe('Cami R.');
+    expect(friendName(friend({ displayName: null }))).toBe('Amigo sin nombre');
+  });
 });
 
 describe('birthdayPeople', () => {

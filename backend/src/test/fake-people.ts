@@ -216,7 +216,10 @@ export function createFakePeople() {
 /** Amistades en memoria. Usa los contactos y participantes del fake de Personas. */
 export function createFakeFriends(
   people: ReturnType<typeof createFakePeople>,
-  profiles: Map<string, { displayName: string | null; birthDay: number | null; birthMonth: number | null }>,
+  profiles: Map<
+    string,
+    { displayName: string | null; birthDay: number | null; birthMonth: number | null; phone: string | null; sharePhone: boolean }
+  >,
 ) {
   let sequence = 0;
   const nextId = () => `00000000-0000-7000-a000-${String((sequence += 1)).padStart(12, '0')}`;
@@ -228,6 +231,8 @@ export function createFakeFriends(
     const pair = orderedPair(a, b);
     return friendships.findIndex((item) => item.userAId === pair.userAId && item.userBId === pair.userBId);
   };
+  const linked = (userId: string, friendId: string) =>
+    people.contacts.find((contact) => contact.userId === userId && contact.friendUserId === friendId);
   const strip = ({ userId: _userId, ...rest }: FriendInviteRecord & { userId: string }): FriendInviteRecord => rest;
 
   const repo: FriendsRepository = {
@@ -268,8 +273,10 @@ export function createFakeFriends(
             displayName: profile?.displayName ?? null,
             birthDay: profile?.birthDay ?? null,
             birthMonth: profile?.birthMonth ?? null,
+            phone: profile?.sharePhone ? profile.phone : null,
+            nickname: linked(userId, friendId)?.nickname ?? null,
             since: item.createdAt,
-            contactId: people.contacts.find((contact) => contact.userId === userId && contact.friendUserId === friendId)?.id ?? null,
+            contactId: linked(userId, friendId)?.id ?? null,
           };
         });
     },
@@ -303,6 +310,17 @@ export function createFakeFriends(
       }
       if (target) target.friendUserId = friendId;
       return true;
+    },
+    async setNickname(userId, friendId, nickname, friendName) {
+      const contact = linked(userId, friendId);
+      if (contact) contact.nickname = nickname;
+      else if (nickname !== null) {
+        const created = await people.repo.createContact(userId, {
+          name: friendName, nickname, birthDay: null, birthMonth: null, birthYear: null,
+          phone: null, email: null, relationship: null, notes: null,
+        });
+        people.contacts.find((item) => item.id === created.id)!.friendUserId = friendId;
+      }
     },
   };
 

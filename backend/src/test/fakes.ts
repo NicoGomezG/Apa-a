@@ -248,6 +248,8 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
           birthDay: null,
           birthMonth: null,
           birthYear: null,
+          phone: null,
+          sharePhone: false,
           createdAt: new Date('2026-10-18T12:00:00Z'),
           preferences: { timezone: 'America/Santiago', locale: 'es-CL', currency: 'CLP' },
         };

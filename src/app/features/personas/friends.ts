@@ -1,9 +1,9 @@
 import type { BirthdayPerson } from '../../core/calendar/birthdays';
 import type { Contact, Friend } from './people.models';
 
-/** Nombre visible de un amigo. */
-export function friendName(friend: Pick<Friend, 'displayName'>): string {
-  return friend.displayName?.trim() || 'Amigo sin nombre';
+/** Nombre visible de un amigo: tu apodo para él si le pusiste uno. */
+export function friendName(friend: Pick<Friend, 'displayName'> & { nickname?: string | null }): string {
+  return friend.nickname?.trim() || friend.displayName?.trim() || 'Amigo sin nombre';
 }
 
 /**

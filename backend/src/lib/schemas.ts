@@ -37,3 +37,9 @@ export const optionalEmail = z
   .refine((value) => value === null || z.email().safeParse(value).success, 'Correo inválido')
   .nullable()
   .optional();
+
+/** Teléfono opcional (dígitos, +, espacios, guiones, paréntesis); '' se guarda como null. */
+export const optionalPhone = optionalText(30).refine(
+  (value) => !value || /^[+\d\s()-]{6,30}$/.test(value),
+  'Teléfono inválido',
+);

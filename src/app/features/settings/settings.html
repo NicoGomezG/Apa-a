@@ -42,6 +42,17 @@
           </div>
           <div class="form-text">Tus amigos en Apaña ven el día y el mes, nunca el año.</div>
         </fieldset>
+        <div>
+          <label class="form-label" for="phone">Teléfono</label>
+          <input id="phone" name="phone" type="tel" class="form-control" maxlength="30" autocomplete="tel"
+                 placeholder="+56 9 1234 5678" [(ngModel)]="phone" />
+          <div class="form-check form-switch mt-2">
+            <input id="sharePhone" name="sharePhone" type="checkbox" role="switch" class="form-check-input"
+                   [(ngModel)]="sharePhone" [disabled]="!phone.trim()" />
+            <label class="form-check-label" for="sharePhone">Mostrar mi teléfono a mis amigos</label>
+          </div>
+          <div class="form-text">Si lo apagas, nadie lo ve: queda solo para ti.</div>
+        </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
           <button class="btn btn-primary" type="submit" [disabled]="saving() === 'profile'">
             {{ saving() === 'profile' ? 'Guardando…' : 'Guardar' }}

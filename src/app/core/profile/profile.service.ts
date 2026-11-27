@@ -17,6 +17,9 @@ export interface Me {
   birthDay: number | null;
   birthMonth: number | null;
   birthYear: number | null;
+  phone: string | null;
+  /** Si los amigos ven el teléfono. */
+  sharePhone: boolean;
   createdAt: string;
   preferences: Preferences;
 }
@@ -41,7 +44,7 @@ export class ProfileService {
   }
 
   async updateProfile(
-    changes: Partial<Pick<Me, 'displayName' | 'birthDay' | 'birthMonth' | 'birthYear'>>,
+    changes: Partial<Pick<Me, 'displayName' | 'birthDay' | 'birthMonth' | 'birthYear' | 'phone' | 'sharePhone'>>,
   ): Promise<Me> {
     const me = await firstValueFrom(this.http.patch<Me>(`${this.api}/me`, changes));
     this.meState.set(me);

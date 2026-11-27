@@ -150,6 +150,10 @@ export interface Friend {
   displayName: string | null;
   birthDay: number | null;
   birthMonth: number | null;
+  /** Solo si el amigo eligió compartirlo. */
+  phone: string | null;
+  /** Apodo propio (del contacto enlazado); el amigo no lo ve. */
+  nickname: string | null;
   since: string;
   contactId: string | null;
 }

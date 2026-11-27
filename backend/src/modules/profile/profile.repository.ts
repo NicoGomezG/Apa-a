@@ -12,11 +12,14 @@ export interface ProfileRecord {
   birthDay: number | null;
   birthMonth: number | null;
   birthYear: number | null;
+  /** Teléfono propio; los amigos lo ven solo si sharePhone. */
+  phone: string | null;
+  sharePhone: boolean;
   createdAt: Date;
   preferences: Preferences;
 }
 
-export type ProfileChanges = Pick<ProfileRecord, 'displayName' | 'birthDay' | 'birthMonth' | 'birthYear'>;
+export type ProfileChanges = Pick<ProfileRecord, 'displayName' | 'birthDay' | 'birthMonth' | 'birthYear' | 'phone' | 'sharePhone'>;
 
 export interface ProfileRepository {
   find(userId: string): Promise<ProfileRecord | null>;
@@ -32,6 +35,8 @@ const profileSelect = {
   birthDay: true,
   birthMonth: true,
   birthYear: true,
+  phone: true,
+  sharePhone: true,
   createdAt: true,
   preferences: { select: { timezone: true, locale: true, currency: true } },
 } as const;
@@ -42,6 +47,8 @@ type SelectedProfile = {
   birthDay: number | null;
   birthMonth: number | null;
   birthYear: number | null;
+  phone: string | null;
+  sharePhone: boolean;
   createdAt: Date;
   preferences: Preferences | null;
 };
