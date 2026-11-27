@@ -1,9 +1,9 @@
 import { Component, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment.generated';
 import { AuthService } from '../../core/auth/auth.service';
-import { rememberRedirect } from '../../core/auth/pending-redirect';
+import { rememberRedirect, takeRedirect } from '../../core/auth/pending-redirect';
 
 @Component({
   selector: 'app-register',
@@ -20,8 +20,9 @@ import { rememberRedirect } from '../../core/auth/pending-redirect';
           @if (sent()) {
             <h1 class="h4">Revisa tu correo</h1>
             <p class="mb-0">
-              Si <strong>{{ email }}</strong> no tenía cuenta, te enviamos un enlace para confirmarla.
-              Ábrelo desde este mismo dispositivo.
+              Si <strong>{{ email }}</strong> ya tenía cuenta, <a routerLink="/auth/ingresar"
+              [queryParams]="volver() ? { volver: volver() } : {}">ingresa con tu contraseña</a>. Si no, te
+              enviamos un enlace para confirmarla: ábrelo desde este mismo dispositivo.
             </p>
           } @else {
             <h1 class="h4 mb-3">Crea tu cuenta</h1>
@@ -66,6 +67,7 @@ import { rememberRedirect } from '../../core/auth/pending-redirect';
 })
 export class Register {
   private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   /** Adónde volver después de confirmar la cuenta (p. ej. una invitación de amistad). */
   readonly volver = input<string>();
@@ -92,7 +94,10 @@ export class Register {
     rememberRedirect(this.volver());
     const result = await this.auth.signUp(this.email.trim(), this.password, this.name.trim());
     this.loading.set(false);
-    if (result.ok) {
+    if (result.ok && result.signedIn) {
+      // Sin confirmación por correo: entra de inmediato (p. ej. directo a aceptar la invitación).
+      await this.router.navigateByUrl(takeRedirect(), { replaceUrl: true });
+    } else if (result.ok) {
       // Mismo mensaje exista o no la cuenta: no revelamos qué correos están registrados.
       this.sent.set(true);
     } else {

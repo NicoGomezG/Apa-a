@@ -13,7 +13,7 @@ import { AuthService } from '../../core/auth/auth.service';
         <section class="apana-card p-4">
           @if (!auth.initialized()) {
             <div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando…</span></div></div>
-          } @else if (!auth.isAuthenticated()) {
+          } @else if (!auth.isAuthenticated() || !auth.recovering()) {
             <h1 class="h4">El enlace no es válido</h1>
             <p>Puede que haya expirado o que ya lo hayas usado.</p>
             <a class="btn btn-primary" routerLink="/auth/recuperar">Pedir uno nuevo</a>

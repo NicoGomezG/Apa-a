@@ -121,6 +121,14 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 - QR de invitación: `qrcode` (carga diferida) genera la imagen en el navegador; nunca usar un servicio
   externo de QR (el enlace es un código de un solo uso). `qrcode`/`dijkstrajs` van en `allowedCommonJsDependencies`.
 - Destino tras registrarse/Google: `core/auth/pending-redirect.ts` (localStorage), lo usa `auth-callback`.
+  Registro sin confirmar correo ("Confirm email" apagado en Supabase): `signUp` trae sesión y `register.ts`
+  navega directo al destino; si no trae sesión (correo ya registrado) muestra "revisa tu correo".
+- Contraseña: solo se cambia desde el enlace del correo. `AuthService.recovering` se activa con el evento
+  `PASSWORD_RECOVERY` (sessionStorage) y `updatePassword` lo exige; Perfil solo envía el enlace.
+  El bloqueo real del lado servidor es "Secure password change" en el panel de Supabase.
+- Config de Auth (Site URL, Redirect URLs, confirmación, plantillas de correo) vive solo en el panel de
+  Supabase, no en el repo. Site URL = dominio de producción; si un `emailRedirectTo` no está en la lista
+  de Redirect URLs, Supabase cae al Site URL.
 
 ## Trampas conocidas
 
@@ -145,6 +153,9 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 ## Pendientes
 
 - Aplicar la migración `20261129000000_debts`, luego push (la del chat ya está aplicada).
+- Panel de Supabase → Auth: apagar "Confirm email", Site URL = dominio de producción, agregar
+  `<dominio>/auth/callback` y `<dominio>/auth/nueva-clave` a Redirect URLs, plantillas en español,
+  activar "Secure password change".
 - Probar el chat en navegador con dos cuentas (amigos y grupo, móvil y escritorio).
 - Chat, después: aviso push/correo, borrar mensajes propios, Supabase Realtime si el sondeo queda corto.
 - Probar en navegador: importación (worker de pdf.js), Agenda, Personas, el enlace público y
@@ -157,6 +168,9 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Historial (más reciente arriba, una línea por cambio)
 
+- 2026-11-27 · Perfil: la contraseña solo se cambia con el enlace del correo.
+- 2026-11-27 · Amigos: un solo enlace de invitación a la vista (reusa el sin usar; "Crear otro enlace" y anular anteriores).
+- 2026-11-27 · Registro entra directo si Supabase no exige confirmar correo (invitados van al tiro a aceptar).
 - 2026-11-27 · Fix QR de invitación: el import diferido de `qrcode` solo trae `default`.
 - 2026-11-27 · Celular: invitaciones con botones bajo el enlace, chat al alto de la pantalla, gasto base sin scroll.
 - 2026-11-27 · Finanzas → Deudas: quién me debe y a quién le debo, con abonos y días sin pagar.

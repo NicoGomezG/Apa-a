@@ -45,7 +45,7 @@ export class Settings {
   protected birthYear = '';
   protected timezone = '';
   protected currency = '';
-  protected newPassword = '';
+  protected readonly email = this.auth.email;
   protected deleteConfirmation = '';
 
   protected readonly saving = signal<SavingKey | null>(null);
@@ -91,18 +91,19 @@ export class Settings {
     });
   }
 
-  protected async changePassword(): Promise<void> {
-    if (this.newPassword.length < 8) {
-      this.passwordStatus.set({ kind: 'error', message: 'Usa al menos 8 caracteres.' });
-      return;
-    }
+  /** La contraseña solo se cambia desde el enlace del correo (ver AuthService.recovering). */
+  protected async sendPasswordLink(): Promise<void> {
+    const email = this.email();
+    if (!email) return;
     this.saving.set('password');
-    const result = await this.auth.updatePassword(this.newPassword);
+    this.passwordStatus.set(null);
+    const result = await this.auth.sendPasswordReset(email);
     this.saving.set(null);
     this.passwordStatus.set(
-      result.ok ? { kind: 'success', message: 'Actualizamos tu contraseña.' } : { kind: 'error', message: result.message },
+      result.ok
+        ? { kind: 'success', message: 'Te enviamos el enlace. Ábrelo desde este dispositivo.' }
+        : { kind: 'error', message: result.message },
     );
-    if (result.ok) this.newPassword = '';
   }
 
   protected async exportData(): Promise<void> {

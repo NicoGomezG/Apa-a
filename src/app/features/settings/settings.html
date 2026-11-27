@@ -95,22 +95,18 @@
   <div class="col-12 col-xl-6 d-grid gap-4 align-content-start">
     <section class="apana-card" aria-labelledby="seguridad">
       <h2 id="seguridad" class="apana-section-title"><i class="fa-solid fa-lock" aria-hidden="true"></i>Seguridad</h2>
-      <form (ngSubmit)="changePassword()" class="d-grid gap-3">
-        <div>
-          <label class="form-label" for="newPassword">Nueva contraseña</label>
-          <input id="newPassword" name="newPassword" type="password" class="form-control" minlength="8"
-                 autocomplete="new-password" [(ngModel)]="newPassword" />
-          <div class="form-text">Mínimo 8 caracteres.</div>
-        </div>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-          <button class="btn btn-outline-primary" type="submit" [disabled]="saving() === 'password' || !newPassword">
-            Cambiar contraseña
-          </button>
-          @if (passwordStatus(); as status) {
-            <span role="status" [class]="status.kind === 'success' ? 'text-success' : 'text-danger'">{{ status.message }}</span>
-          }
-        </div>
-      </form>
+      <p class="text-secondary">
+        Para cambiar tu contraseña te enviamos un enlace a <strong>{{ email() }}</strong>. Así nadie puede cambiarla
+        solo porque dejaste la sesión abierta.
+      </p>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <button class="btn btn-outline-primary" type="button" (click)="sendPasswordLink()" [disabled]="saving() === 'password' || !email()">
+          {{ saving() === 'password' ? 'Enviando…' : 'Enviarme el enlace' }}
+        </button>
+        @if (passwordStatus(); as status) {
+          <span role="status" [class]="status.kind === 'success' ? 'text-success' : 'text-danger'">{{ status.message }}</span>
+        }
+      </div>
     </section>
 
     <section class="apana-card" aria-labelledby="privacidad">

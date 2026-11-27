@@ -11,6 +11,16 @@ const failure = (error: Parameters<typeof authErrorMessage>[0]): AuthResult => (
   message: authErrorMessage(error),
 });
 
+const RECOVERY_KEY = 'apana.recuperando';
+
+function readRecovering(): boolean {
+  try {
+    return sessionStorage.getItem(RECOVERY_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly supabase = inject(SUPABASE);
@@ -26,6 +36,14 @@ export class AuthService {
   /** Se resuelve cuando ya se sabe si hay sesión (incluye el canje de ?code= de OAuth). */
   readonly ready: Promise<void>;
 
+  /**
+   * true solo si se llegó desde el enlace de recuperación del correo (evento PASSWORD_RECOVERY).
+   * Cambiar la contraseña exige esto: con la sesión abierta no basta. Se guarda en sessionStorage
+   * para sobrevivir una recarga de /auth/nueva-clave en la misma pestaña.
+   */
+  private readonly recoveringState = signal(readRecovering());
+  readonly recovering = this.recoveringState.asReadonly();
+
   constructor() {
     this.ready = this.supabase.auth.getSession().then(({ data }) => {
       this.sessionState.set(data.session);
@@ -35,7 +53,10 @@ export class AuthService {
     this.supabase.auth.onAuthStateChange((event, session) => {
       this.sessionState.set(session);
       if (event === 'PASSWORD_RECOVERY') {
+        this.setRecovering(true);
         void this.router.navigateByUrl('/auth/nueva-clave');
+      } else if (event === 'SIGNED_OUT') {
+        this.setRecovering(false);
       }
     });
   }
@@ -51,8 +72,12 @@ export class AuthService {
     return error ? failure(error) : { ok: true };
   }
 
-  async signUp(email: string, password: string, fullName: string): Promise<AuthResult> {
-    const { error } = await this.supabase.auth.signUp({
+  /**
+   * Con "Confirm email" apagado en Supabase, la respuesta trae sesión y la persona queda dentro.
+   * Si viene sin sesión (confirmación activa o correo ya registrado) hay que mostrar "revisa tu correo".
+   */
+  async signUp(email: string, password: string, fullName: string): Promise<AuthResult & { signedIn?: boolean }> {
+    const { data, error } = await this.supabase.auth.signUp({
       email,
       password,
       options: {
@@ -60,7 +85,9 @@ export class AuthService {
         emailRedirectTo: `${location.origin}/auth/callback`,
       },
     });
-    return error ? failure(error) : { ok: true };
+    if (error) return failure(error);
+    if (data.session) this.sessionState.set(data.session);
+    return { ok: true, signedIn: data.session !== null };
   }
 
   async signInWithGoogle(): Promise<AuthResult> {
@@ -78,9 +105,25 @@ export class AuthService {
     return error ? failure(error) : { ok: true };
   }
 
+  /** Solo desde el enlace de recuperación (ver `recovering`). */
   async updatePassword(password: string): Promise<AuthResult> {
+    if (!this.recoveringState()) {
+      return { ok: false, message: 'Para cambiar tu contraseña, pide el enlace por correo.' };
+    }
     const { error } = await this.supabase.auth.updateUser({ password });
-    return error ? failure(error) : { ok: true };
+    if (error) return failure(error);
+    this.setRecovering(false);
+    return { ok: true };
+  }
+
+  private setRecovering(value: boolean): void {
+    this.recoveringState.set(value);
+    try {
+      if (value) sessionStorage.setItem(RECOVERY_KEY, '1');
+      else sessionStorage.removeItem(RECOVERY_KEY);
+    } catch {
+      // Sin almacenamiento: vale solo mientras no se recargue la página.
+    }
   }
 
   async signOut(): Promise<void> {

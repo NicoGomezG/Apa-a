@@ -33,15 +33,14 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
       </div>
     }
 
-    @if (invites().length > 0) {
+    @if (current(); as invite) {
       <section class="apana-card mb-3" aria-labelledby="invitaciones">
-        <h2 id="invitaciones" class="apana-section-title"><i class="fa-solid fa-link" aria-hidden="true"></i>Invitaciones sin usar</h2>
+        <h2 id="invitaciones" class="apana-section-title"><i class="fa-solid fa-link" aria-hidden="true"></i>Enlace de invitación</h2>
         <p class="small mb-3">
           Envía el enlace a una sola persona: sirve una vez y vence en 7 días. Si no tiene cuenta, la crea y queda como tu amigo.
         </p>
-        <ul class="list-unstyled d-grid gap-3 mb-0">
-          @for (invite of invites(); track invite.id) {
-            <li>
+        <div class="d-grid gap-3">
+            <div>
               <label class="visually-hidden" [for]="'inv-' + invite.id">Enlace de invitación</label>
               <input class="form-control form-control-sm mb-2" readonly [id]="'inv-' + invite.id" [value]="inviteUrl(invite)" (focus)="$any($event.target).select()" />
               <div class="d-flex flex-wrap gap-2">
@@ -75,9 +74,18 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
                   <p class="small mb-0">Pídele a tu amigo que lo escanee con la cámara del celular. Sirve una sola vez.</p>
                 </div>
               }
-            </li>
+            </div>
+          <div class="d-flex flex-wrap align-items-center gap-2 small">
+            <span>¿Vas a invitar a otra persona?</span>
+            <button type="button" class="btn btn-link btn-sm p-0" (click)="newInvite()" [disabled]="busy()">Crear otro enlace</button>
+          </div>
+          @if (older().length > 0) {
+            <div class="d-flex flex-wrap align-items-center gap-2 small">
+              <span>{{ older().length === 1 ? 'Tienes 1 enlace anterior sin usar' : 'Tienes ' + older().length + ' enlaces anteriores sin usar' }}.</span>
+              <button type="button" class="btn btn-link btn-sm p-0 text-danger" (click)="revokeOlder()" [disabled]="busy()">Anular</button>
+            </div>
           }
-        </ul>
+        </div>
       </section>
     }
 
@@ -215,6 +223,11 @@ export class PersonasAmigos {
 
   private readonly today = todayIn(this.profile.timezone());
 
+  /** Se muestra un solo enlace: el más nuevo. Los anteriores siguen vigentes hasta usarse o anularse. */
+  private readonly sortedInvites = computed(() => [...this.invites()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  protected readonly current = computed(() => this.sortedInvites()[0] ?? null);
+  protected readonly older = computed(() => this.sortedInvites().slice(1));
+
   protected readonly rows = computed(() => {
     const contacts = new Map(this.contacts().map((contact) => [contact.id, contact]));
     return this.friends()
@@ -268,7 +281,18 @@ export class PersonasAmigos {
     return `${location.origin}/amigos/unirse/${invite.code}`;
   }
 
+  /** Si ya hay un enlace sin usar, se muestra ese en vez de crear otro (evita duplicados por doble toque). */
   protected async createInvite(): Promise<void> {
+    if (this.current()) {
+      this.status.set({ kind: 'success', message: 'Ya tienes un enlace sin usar: envíaselo a tu amigo.' });
+      document.getElementById('invitaciones')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    await this.newInvite();
+  }
+
+  protected async newInvite(): Promise<void> {
+    this.qrFor.set(null);
     await this.run(async () => {
       const invite = await this.people.createInvite();
       this.invites.update((list) => [invite, ...list]);
@@ -281,6 +305,15 @@ export class PersonasAmigos {
       this.invites.update((list) => list.filter((item) => item.id !== invite.id));
       if (this.qrFor() === invite.id) this.qrFor.set(null);
     }, 'Anulamos la invitación: el enlace ya no funciona.');
+  }
+
+  protected async revokeOlder(): Promise<void> {
+    const older = this.older();
+    await this.run(async () => {
+      for (const invite of older) await this.people.revokeInvite(invite.id);
+      const ids = new Set(older.map((invite) => invite.id));
+      this.invites.update((list) => list.filter((item) => !ids.has(item.id)));
+    }, older.length === 1 ? 'Anulamos el enlace anterior.' : 'Anulamos los enlaces anteriores.');
   }
 
   protected async copy(invite: FriendInvite): Promise<void> {
