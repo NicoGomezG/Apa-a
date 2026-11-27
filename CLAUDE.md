@@ -45,7 +45,8 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
   `contactId`, `shareToken` ni ids de cuenta, y solo deja informar pagos propios (`confirmed=false`).
   Y `/api/chats/*`: amigos (clave de la conversación armada con `currentUser` + amigo; escribir exige
   amistad vigente) y grupos (dueño o `linked_user_id`). Los mensajes nunca llevan `authorId`.
-- Amigos: solo ven nombre y cumpleaños (día y mes) del otro. Nunca correo, año ni otros módulos.
+- Amigos: solo ven nombre, cumpleaños (día y mes) y teléfono **solo si el otro activó `share_phone`**.
+  Nunca correo, año ni otros módulos. El apodo que uno le pone a un amigo es privado (no se lo ve el amigo).
 - Dinero: `BigInt` en unidad mínima + `currency`. Nunca `Float`/`number` con decimales.
 - Fechas: `timestamptz` para instantes, `date` para días; zona por defecto `America/Santiago`.
 - La bitácora (`AuditRepository.record`) guarda acciones e identificadores, **nunca** valores
@@ -120,6 +121,9 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
   como leído. Los mensajes de grupo caen con el grupo (FK cascade); la bitácora no guarda el texto.
 - QR de invitación: `qrcode` (carga diferida) genera la imagen en el navegador; nunca usar un servicio
   externo de QR (el enlace es un código de un solo uso). `qrcode`/`dijkstrajs` van en `allowedCommonJsDependencies`.
+- Apodo de un amigo = `nickname` del contacto enlazado (`PUT /friends/:id/nickname`; si no hay contacto, lo crea
+  con el nombre del amigo y lo enlaza). `friendName()` muestra el apodo primero. Teléfono propio: `profiles.phone`
+  + `share_phone` (apagado por defecto); `listFriends` lo entrega solo si está activo.
 - Destino tras registrarse/Google: `core/auth/pending-redirect.ts` (localStorage), lo usa `auth-callback`.
   Registro sin confirmar correo ("Confirm email" apagado en Supabase): `signUp` trae sesión y `register.ts`
   navega directo al destino; si no trae sesión (correo ya registrado) muestra "revisa tu correo".
@@ -152,7 +156,7 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Pendientes
 
-- Aplicar la migración `20261129000000_debts`, luego push (la del chat ya está aplicada).
+- Aplicar las migraciones `20261129000000_debts` y `20261130000000_profile_phone`, luego push.
 - Panel de Supabase → Auth: apagar "Confirm email", Site URL = dominio de producción, agregar
   `<dominio>/auth/callback` y `<dominio>/auth/nueva-clave` a Redirect URLs, plantillas en español,
   activar "Secure password change".
@@ -168,6 +172,7 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Historial (más reciente arriba, una línea por cambio)
 
+- 2026-11-27 · Amigos: apodo propio (en el contacto enlazado) y teléfono en el perfil, compartido solo si lo activas.
 - 2026-11-27 · Perfil: la contraseña solo se cambia con el enlace del correo.
 - 2026-11-27 · Amigos: un solo enlace de invitación a la vista (reusa el sin usar; "Crear otro enlace" y anular anteriores).
 - 2026-11-27 · Registro entra directo si Supabase no exige confirmar correo (invitados van al tiro a aceptar).
