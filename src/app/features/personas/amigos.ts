@@ -302,10 +302,13 @@ export class PersonasAmigos {
     this.qrFor.set(invite.id);
     this.qrImage.set(null);
     try {
-      const { toDataURL } = await import('qrcode');
-      const image = await toDataURL(this.inviteUrl(invite), { width: 480, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#0a0a0a', light: '#ffffff' } });
+      // `qrcode` es CommonJS: el bundle lo expone solo como `default` (los nombres sueltos llegan undefined).
+      const mod = await import('qrcode');
+      const qr = (mod as unknown as { default?: typeof mod }).default ?? mod;
+      const image = await qr.toDataURL(this.inviteUrl(invite), { width: 480, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#0a0a0a', light: '#ffffff' } });
       if (this.qrFor() === invite.id) this.qrImage.set(image);
-    } catch {
+    } catch (error) {
+      console.error('QR', error);
       this.qrFor.set(null);
       this.status.set({ kind: 'error', message: 'No pudimos generar el código QR. Usa el enlace.' });
     }

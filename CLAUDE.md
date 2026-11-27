@@ -136,6 +136,8 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 - El `tsconfig` del backend excluye `*.test.ts`: el typecheck no revisa las pruebas (vitest sí).
 - `prisma migrate diff --from-config-datasource` compara con la base real (que puede ir atrasada).
   Para generar solo lo nuevo: copiar el schema antes de editarlo y usar `--from-schema <copia>`.
+- `await import()` de un paquete CommonJS (`qrcode`) en el bundle solo trae `default`: los nombres
+  sueltos (`const { toDataURL } = …`) llegan `undefined`. Usar `(mod.default ?? mod).fn`.
 - npm 11 bloquea scripts de instalación: tras `npm ci` en `backend`, correr `npx prisma generate`.
 - Tras cambiar `schema.prisma` (o hacer pull de un cambio): `npx prisma generate` en `backend` y reiniciar
   `dev:api`. Síntoma de cliente viejo: `Unknown field … for select` o `prisma.<modelo>` undefined.
@@ -155,6 +157,7 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Historial (más reciente arriba, una línea por cambio)
 
+- 2026-11-27 · Fix QR de invitación: el import diferido de `qrcode` solo trae `default`.
 - 2026-11-27 · Celular: invitaciones con botones bajo el enlace, chat al alto de la pantalla, gasto base sin scroll.
 - 2026-11-27 · Finanzas → Deudas: quién me debe y a quién le debo, con abonos y días sin pagar.
 - 2026-11-27 · Finanzas → Resumen: apartado "Tipo de cambio" (dólar y euro observados con variación), `GET /finance/exchange-rates`.
