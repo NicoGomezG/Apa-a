@@ -31,44 +31,75 @@ const TABS = [
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
         >
-          <i class="fa-solid {{ tab.icon }}" aria-hidden="true"></i>{{ tab.label }}
+          <i class="fa-solid {{ tab.icon }}" aria-hidden="true"></i><span>{{ tab.label }}</span>
         </a>
       }
     </nav>
     <router-outlet />
   `,
   styles: `
+    /* Todas las secciones a la vista, sin deslizar: grilla de 4 en celular, barra que salta de línea en escritorio. */
     .finance-tabs {
-      display: flex;
-      gap: 0.5rem;
-      overflow-x: auto;
-      padding-bottom: 0.25rem;
-      scrollbar-width: thin;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.25rem;
+      padding: 0.25rem;
+      border-radius: 18px;
+      background: var(--bs-secondary-bg);
     }
     .finance-tab {
-      display: inline-flex;
+      display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 0.45rem;
-      white-space: nowrap;
-      padding: 0.45rem 0.9rem;
-      border-radius: 999px;
-      border: 1px solid var(--bs-border-color);
-      background: var(--bs-body-bg);
+      justify-content: center;
+      gap: 0.25rem;
+      min-width: 0;
+      padding: 0.5rem 0.25rem;
+      border-radius: 14px;
       color: var(--bs-body-color);
       font-weight: 500;
-      font-size: 0.9rem;
+      font-size: 0.7rem;
+      line-height: 1.15;
+      text-align: center;
       text-decoration: none;
     }
+    .finance-tab span {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .finance-tab i {
+      font-size: 1rem;
       color: var(--apana-section-color);
+    }
+    .finance-tab:hover {
+      background: var(--bs-body-bg);
     }
     .finance-tab.active {
       background: var(--bs-primary);
-      border-color: var(--bs-primary);
       color: #fff;
+      font-weight: 600;
     }
     .finance-tab.active i {
       color: #fff;
+    }
+    @media (min-width: 768px) {
+      .finance-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        width: fit-content;
+        max-width: 100%;
+      }
+      .finance-tab {
+        flex-direction: row;
+        gap: 0.45rem;
+        padding: 0.45rem 0.9rem;
+        font-size: 0.9rem;
+      }
+      .finance-tab i {
+        font-size: 0.9rem;
+      }
     }
   `,
 })

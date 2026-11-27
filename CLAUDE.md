@@ -200,6 +200,7 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Historial (más reciente arriba, una línea por cambio)
 
+- 2026-11-27 · Finanzas: pestañas en grilla (4 columnas en celular, barra que salta de línea en escritorio), sin deslizar.
 - 2026-11-27 · Salud fase B: recambios (lentes…) y medicamentos cada N horas, con tarjeta en Inicio. Inicio esconde "Primeros pasos" completos.
 - 2026-11-27 · Enlaces de volver con estilo propio (`.apana-back`), ya no como link subrayado.
 - 2026-11-27 · Finanzas → Cuentas fijas (agua, luz, internet…): pago de cada mes y suman al gasto base, Agenda y próximos pagos.
