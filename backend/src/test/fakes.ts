@@ -302,6 +302,7 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
     chat: chat.repo,
     debts: debts.repo,
     health: health.repo,
+    healthTrackers: health.trackersRepo,
     bills: bills.repo,
     rates: {
       async toClp(currency) {

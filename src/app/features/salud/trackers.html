@@ -1,0 +1,347 @@
+@if (status(); as s) {
+  <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
+    {{ s.message }}
+  </div>
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <p class="mb-0">
+    @if (dueCount() > 0) {
+      <strong class="text-danger">{{ dueCount() === 1 ? 'Tienes 1 toma por marcar.' : 'Tienes ' + dueCount() + ' tomas por marcar.' }}</strong>
+    } @else {
+      Medicamentos cada cierta hora y cosas que se cambian cada tantos días, como los lentes de contacto.
+    }
+  </p>
+  <div class="d-flex flex-wrap gap-2">
+    <button type="button" class="btn btn-sm btn-primary" (click)="openNew('medication')">
+      <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Medicamento
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-primary" (click)="openNew('replacement')">
+      <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Recambio
+    </button>
+  </div>
+</div>
+
+<!-- Formulario -->
+@if (formOpen()) {
+  <section class="apana-card mb-3" id="form-seguimiento" aria-labelledby="form-seguimiento-titulo">
+    <h2 id="form-seguimiento-titulo" class="apana-section-title">
+      <i class="fa-solid {{ draft.kind === 'medication' ? 'fa-pills' : 'fa-rotate' }}" aria-hidden="true"></i>
+      {{ editingId() ? 'Editar ' + draft.name : draft.kind === 'medication' ? 'Nuevo medicamento' : 'Nuevo recambio' }}
+    </h2>
+    <form class="row g-3" (ngSubmit)="save()">
+      @if (draft.kind === 'replacement') {
+        @if (!editingId()) {
+          <div class="col-12">
+            <span class="form-label d-block">Rápido</span>
+            <div class="chips">
+              @for (preset of presets; track preset.name) {
+                <button type="button" class="btn btn-sm btn-outline-primary" [class.active]="draft.name === preset.name"
+                        (click)="usePreset(preset)">
+                  <i class="fa-solid {{ preset.icon }} me-1" aria-hidden="true"></i>{{ preset.name }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="trackerName">Qué recambias</label>
+          <input id="trackerName" name="name" class="form-control" maxlength="80" placeholder="Ej: Lentes de contacto"
+                 [(ngModel)]="draft.name" required />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="everyDays">Cada (días)</label>
+          <input id="everyDays" name="everyDays" type="number" inputmode="numeric" min="1" max="730" class="form-control"
+                 [(ngModel)]="draft.everyDays" required />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="trackerStart">{{ editingId() ? 'Desde' : 'Último cambio' }}</label>
+          <input id="trackerStart" name="startDate" type="date" class="form-control" [(ngModel)]="draft.startDate" required />
+        </div>
+        @if (draft.startDate && draft.everyDays && draft.everyDays > 0 && !editingId()) {
+          <div class="col-12 form-text mt-1">
+            <i class="fa-solid fa-calendar-check accent me-1" aria-hidden="true"></i>Próximo cambio:
+            <strong>{{ formatDay(draft.startDate) }}</strong> + {{ draft.everyDays }} días
+          </div>
+        }
+      } @else {
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="trackerName">Medicamento</label>
+          <input id="trackerName" name="name" class="form-control" maxlength="80" placeholder="Ej: Amoxicilina 500 mg"
+                 [(ngModel)]="draft.name" required />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="startDate">Desde</label>
+          <input id="startDate" name="startDate" type="date" class="form-control" [(ngModel)]="draft.startDate" required />
+        </div>
+        <div class="col-6 col-md-3">
+          <label class="form-label" for="startTime">Primera toma</label>
+          <input id="startTime" name="startTime" type="time" class="form-control" [(ngModel)]="draft.startTime" required />
+        </div>
+        <fieldset class="col-12">
+          <legend class="form-label fs-6 mb-1">Cada</legend>
+          <div class="chips align-items-center">
+            @for (hours of hourOptions; track hours) {
+              <button type="button" class="btn btn-sm btn-outline-primary" [class.active]="draft.everyHours === hours"
+                      [attr.aria-pressed]="draft.everyHours === hours" (click)="draft.everyHours = hours">
+                {{ hours === 24 ? '24 h (1 al día)' : hours + ' h' }}
+              </button>
+            }
+            <label class="visually-hidden" for="everyHours">Cada cuántas horas</label>
+            <input id="everyHours" name="everyHours" type="number" inputmode="numeric" min="1" max="168"
+                   class="form-control form-control-sm hours" [(ngModel)]="draft.everyHours" required />
+            <span class="small">horas</span>
+          </div>
+        </fieldset>
+        <fieldset class="col-12">
+          <legend class="form-label fs-6 mb-1">Por cuánto tiempo</legend>
+          <div class="chips align-items-center">
+            @for (days of durationOptions; track days) {
+              <button type="button" class="btn btn-sm btn-outline-primary" [class.active]="durationDays() === days"
+                      [attr.aria-pressed]="durationDays() === days" (click)="setDuration(days)">
+                {{ days }} días
+              </button>
+            }
+            <button type="button" class="btn btn-sm btn-outline-primary" [class.active]="!draft.endDate"
+                    [attr.aria-pressed]="!draft.endDate" (click)="setDuration(null)">
+              Sin término
+            </button>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <label class="small" for="endDate">Hasta el</label>
+            <input id="endDate" name="endDate" type="date" class="form-control form-control-sm end-date" [min]="draft.startDate"
+                   [(ngModel)]="draft.endDate" />
+            @if (durationDays(); as days) {
+              <span class="small">({{ days === 1 ? '1 día' : days + ' días' }})</span>
+            }
+          </div>
+        </fieldset>
+      }
+      <div class="col-12">
+        <label class="form-label" for="trackerNotes">Notas <span class="fw-normal">(opcional)</span></label>
+        <textarea id="trackerNotes" name="notes" class="form-control" rows="2" maxlength="500"
+                  [placeholder]="draft.kind === 'medication' ? 'Dosis, con comida, quién lo indicó…' : 'Marca, graduación, dónde los compras…'"
+                  [(ngModel)]="draft.notes"></textarea>
+      </div>
+      @if (editingId() && draft.kind === 'medication') {
+        <p class="col-12 form-text mt-0">Si cambias el día, la hora o cada cuánto, las tomas ya marcadas se reinician.</p>
+      }
+      <div class="col-12 d-flex flex-wrap gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="btn btn-light" type="button" (click)="closeForm()">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+@if (loading()) {
+  <p role="status">Cargando…</p>
+} @else if (trackers().length === 0) {
+  <section class="apana-card">
+    <app-empty-state
+      icon="fa-pills"
+      title="Aún no tienes remedios ni recambios"
+      description="Anota un antibiótico cada 8 horas y marca cada toma, o tus lentes de contacto cada 30 días y te avisamos cuando toque cambiarlos."
+    />
+  </section>
+} @else {
+  <div class="row g-4">
+    <!-- Medicamentos -->
+    <div class="col-12 col-xl-6">
+      <section class="apana-card" aria-labelledby="medicamentos">
+        <h2 id="medicamentos" class="apana-section-title"><i class="fa-solid fa-pills" aria-hidden="true"></i>Medicamentos de hoy</h2>
+        @if (activeMedications().length === 0) {
+          <p class="mb-0">No tienes tratamientos en curso.</p>
+        } @else {
+          <ul class="list-unstyled mb-0 d-grid gap-3">
+            @for (item of activeMedications(); track item.tracker.id) {
+              <li class="item">
+                <div class="d-flex align-items-start gap-2">
+                  <span class="spec-icon" aria-hidden="true"><i class="fa-solid fa-pills"></i></span>
+                  <div class="min-w-0 flex-grow-1">
+                    <div class="fw-semibold">{{ item.tracker.name }}</div>
+                    <div class="small">
+                      {{ everyHoursLabel(item.tracker.everyHours!) }}
+                      @if (item.phase === 'active') {
+                        · Día {{ item.day.day }}{{ item.day.of ? ' de ' + item.day.of : '' }}
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                @if (item.phase === 'notStarted') {
+                  <p class="small mb-0 mt-2">Empieza el {{ formatDay(item.tracker.startDate) }} a las {{ item.tracker.startTime }}.</p>
+                } @else if (item.doses.length === 0) {
+                  <p class="small mb-0 mt-2">
+                    Hoy no toca.
+                    @if (item.next) {
+                      Próxima toma: {{ formatDay(item.next.day) }} a las {{ item.next.time }}.
+                    }
+                  </p>
+                } @else {
+                  <ul class="list-unstyled doses mt-2 mb-0">
+                    @for (dose of item.doses; track dose.number) {
+                      <li class="dose" [class]="'dose-' + dose.status">
+                        <span class="time">{{ dose.time }}</span>
+                        @switch (dose.status) {
+                          @case ('taken') {
+                            <span class="state"><i class="fa-solid fa-circle-check text-success me-1" aria-hidden="true"></i>Tomada</span>
+                            <button type="button" class="btn btn-sm btn-link p-0 ms-auto" (click)="undo(item.tracker, dose.event!.id)"
+                                    [disabled]="busy()">Deshacer</button>
+                          }
+                          @case ('skipped') {
+                            <span class="state"><i class="fa-solid fa-circle-minus me-1" aria-hidden="true"></i>Omitida</span>
+                            <button type="button" class="btn btn-sm btn-link p-0 ms-auto" (click)="undo(item.tracker, dose.event!.id)"
+                                    [disabled]="busy()">Deshacer</button>
+                          }
+                          @default {
+                            <span class="state">{{ dose.status === 'due' ? 'Por tomar' : 'Más tarde' }}</span>
+                            <span class="ms-auto d-flex gap-2">
+                              <button type="button" class="btn btn-sm" [class.btn-primary]="dose.status === 'due'"
+                                      [class.btn-outline-primary]="dose.status !== 'due'"
+                                      (click)="markDose(item.tracker, dose, 'taken')" [disabled]="busy()">
+                                <i class="fa-solid fa-check me-1" aria-hidden="true"></i>Tomada
+                              </button>
+                              <button type="button" class="btn btn-sm btn-outline-primary" (click)="markDose(item.tracker, dose, 'skipped')"
+                                      [disabled]="busy()">Omitir</button>
+                            </span>
+                          }
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
+
+                @if (item.tracker.notes) {
+                  <p class="small notes mt-2 mb-0">{{ item.tracker.notes }}</p>
+                }
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                  @if (confirmDelete() === item.tracker.id) {
+                    <span class="small">¿Borrar {{ item.tracker.name }}?</span>
+                    <button type="button" class="btn btn-sm btn-danger" (click)="remove(item.tracker)" [disabled]="busy()">Sí, borrar</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDelete.set(null)">No</button>
+                  } @else {
+                    <button type="button" class="btn btn-sm btn-link p-0" (click)="edit(item.tracker)">Editar</button>
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="confirmDelete.set(item.tracker.id)">Borrar</button>
+                    @if (item.tracker.endDate) {
+                      <span class="small ms-auto">Hasta el {{ formatDay(item.tracker.endDate) }}</span>
+                    }
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (finishedMedications().length > 0) {
+          <button type="button" class="btn btn-sm btn-link p-0 mt-3" (click)="showFinished.set(!showFinished())"
+                  [attr.aria-expanded]="showFinished()">
+            {{ showFinished() ? 'Ocultar' : 'Ver' }} tratamientos terminados ({{ finishedMedications().length }})
+          </button>
+          @if (showFinished()) {
+            <ul class="list-unstyled mb-0 mt-2 d-grid gap-2">
+              @for (item of finishedMedications(); track item.tracker.id) {
+                <li class="d-flex flex-wrap align-items-center gap-2 small">
+                  <span class="fw-semibold">{{ item.tracker.name }}</span>
+                  <span>{{ formatDay(item.tracker.startDate) }} – {{ formatDay(item.tracker.endDate!) }}</span>
+                  <span class="ms-auto d-flex gap-2">
+                    @if (confirmDelete() === item.tracker.id) {
+                      <button type="button" class="btn btn-sm btn-danger" (click)="remove(item.tracker)" [disabled]="busy()">Sí, borrar</button>
+                      <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDelete.set(null)">No</button>
+                    } @else {
+                      <button type="button" class="btn btn-sm btn-link p-0" (click)="edit(item.tracker)">Editar</button>
+                      <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="confirmDelete.set(item.tracker.id)">Borrar</button>
+                    }
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+        }
+      </section>
+    </div>
+
+    <!-- Recambios -->
+    <div class="col-12 col-xl-6">
+      <section class="apana-card" aria-labelledby="recambios">
+        <h2 id="recambios" class="apana-section-title"><i class="fa-solid fa-rotate" aria-hidden="true"></i>Recambios</h2>
+        @if (replacements().length === 0) {
+          <p class="mb-0">Agrega tus lentes de contacto, el cepillo de dientes o un filtro, y cada cuántos días se cambian.</p>
+        } @else {
+          <ul class="list-unstyled mb-0 d-grid gap-3">
+            @for (item of replacements(); track item.tracker.id) {
+              <li class="item" [class.late]="item.view.status === 'late' || item.view.status === 'due'">
+                <div class="d-flex align-items-start gap-2">
+                  <span class="spec-icon" aria-hidden="true"><i class="fa-solid {{ icon(item.tracker.name) }}"></i></span>
+                  <div class="min-w-0 flex-grow-1">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                      <span class="fw-semibold">{{ item.tracker.name }}</span>
+                      @switch (item.view.status) {
+                        @case ('late') { <span class="badge status-late">Atrasado</span> }
+                        @case ('due') { <span class="badge status-late">Toca hoy</span> }
+                        @case ('soon') { <span class="badge status-soon">Se acerca</span> }
+                        @case ('notStarted') { <span class="badge status-soon">Aún no empieza</span> }
+                        @default { <span class="badge status-ok">Al día</span> }
+                      }
+                    </div>
+                    <div class="small">
+                      {{ everyDaysLabel(item.tracker.everyDays!) }} ·
+                      @if (item.view.daysLeft < 0) {
+                        tocaba el {{ formatDay(item.view.nextChange) }} ({{ relativeDays(item.view.daysLeft) }})
+                      } @else {
+                        cambiar el {{ formatDay(item.view.nextChange) }} ({{ relativeDays(item.view.daysLeft) }})
+                      }
+                    </div>
+                  </div>
+                </div>
+                <div class="progress mt-2" role="progressbar" [attr.aria-valuenow]="item.view.progress * 100" aria-valuemin="0"
+                     aria-valuemax="100" [attr.aria-label]="'Ciclo de ' + item.tracker.name">
+                  <div class="progress-bar" [style.width.%]="item.view.progress * 100"></div>
+                </div>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                  <button type="button" class="btn btn-sm btn-primary" (click)="changedOn(item.tracker, today())"
+                          [disabled]="busy() || today() < item.tracker.startDate || item.view.lastChange?.day === today()">
+                    <i class="fa-solid fa-check me-1" aria-hidden="true"></i>{{ item.view.lastChange?.day === today() ? 'Cambiados hoy' : 'Los cambié hoy' }}
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="openPicker(item.tracker)"
+                          [attr.aria-expanded]="pickingDay() === item.tracker.id">Otro día</button>
+                </div>
+                @if (pickingDay() === item.tracker.id) {
+                  <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                    <label class="visually-hidden" [for]="'dia-' + item.tracker.id">Día del cambio</label>
+                    <input [id]="'dia-' + item.tracker.id" type="date" class="form-control form-control-sm end-date" [min]="item.tracker.startDate"
+                           [max]="today()" [(ngModel)]="pickedDay" />
+                    <button type="button" class="btn btn-sm btn-primary" (click)="changedOn(item.tracker, pickedDay)"
+                            [disabled]="busy() || !pickedDay">Anotar</button>
+                  </div>
+                }
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-2 small">
+                  @if (item.view.lastChange; as last) {
+                    <span>Último cambio: {{ formatDay(last.day!) }}</span>
+                    <button type="button" class="btn btn-sm btn-link p-0" (click)="undo(item.tracker, last.id)" [disabled]="busy()">Deshacer</button>
+                  } @else {
+                    <span>Desde el {{ formatDay(item.tracker.startDate) }}</span>
+                  }
+                  <span class="ms-auto d-flex gap-2">
+                    @if (confirmDelete() === item.tracker.id) {
+                      <button type="button" class="btn btn-sm btn-danger" (click)="remove(item.tracker)" [disabled]="busy()">Sí, borrar</button>
+                      <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDelete.set(null)">No</button>
+                    } @else {
+                      <button type="button" class="btn btn-sm btn-link p-0" (click)="edit(item.tracker)">Editar</button>
+                      <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="confirmDelete.set(item.tracker.id)">Borrar</button>
+                    }
+                  </span>
+                </div>
+                @if (item.tracker.notes) {
+                  <p class="small notes mt-2 mb-0">{{ item.tracker.notes }}</p>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </div>
+  </div>
+}

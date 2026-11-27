@@ -28,6 +28,8 @@ export function createPrismaAccountRepository(prisma: PrismaClient): AccountRepo
         prisma.bill.deleteMany({ where: { userId } }),
         // Salud.
         prisma.healthVisit.deleteMany({ where: { userId } }),
+        prisma.healthTrackerEvent.deleteMany({ where: { userId } }),
+        prisma.healthTracker.deleteMany({ where: { userId } }),
         // Amigos: invitaciones, amistades y todo enlace que otras personas tengan hacia esta cuenta.
         prisma.friendInvite.deleteMany({ where: { userId } }),
         prisma.friendship.deleteMany({ where: { OR: [{ userAId: userId }, { userBId: userId }] } }),

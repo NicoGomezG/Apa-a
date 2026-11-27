@@ -72,6 +72,7 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
   para estados. Sin degradados.
 - Responsivo siempre: móvil (barra inferior), tablet, escritorio (barra lateral).
 - Estados vacíos honestos: nunca cifras de ejemplo en el dashboard.
+- Enlaces de volver (← Mensajes, ← Gastos compartidos): clase `.apana-back` (botón fantasma gris, sin subrayado).
 - Rojo de domingos/feriados = `--bs-danger` (`#e7000b`, también destructivo/errores).
 
 ## Estado (actualizar al cerrar cada cambio)
@@ -87,7 +88,8 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 | Finanzas → Cuentas fijas: agua, luz, internet… con monto estimado, pago real de cada mes ("Pagada"), suman al gasto base, en Agenda y próximos pagos | ✅ (sin probar en navegador; migración pendiente) | `modules/bills` (`/finance/bills`), `features/finanzas/cuentas-fijas.*` |
 | Chat: entre amigos (ex amigos = solo lectura) y por grupo de gastos, no leídos en la navegación | ✅ (sin probar en navegador) | `modules/chat`, `features/personas/chat-thread.ts`, `mensajes.ts`, `chat.service.ts` |
 | Salud fase A: consultas por especialidad, "repetir en" 1/6/12 meses o fecha a mano, próximos controles ("Ya fui"), en la Agenda | ✅ (sin probar en navegador; migración pendiente) | `modules/health` (`/health/visits`), `features/salud` |
-| Salud fase B (lentes/recambios, medicamentos cada N horas) y fase C (documentos en Storage) | ⏳ | plan acordado: ver *Pendientes* |
+| Salud fase B: recambios cada N días ("Los cambié hoy") y medicamentos cada N horas (tomada/omitida por toma), pestaña "Remedios y recambios" y tarjeta en Inicio | ✅ (sin probar en navegador; migración pendiente) | `health.trackers.*` (`/health/trackers`), `features/salud/trackers.*` |
+| Salud fase C (documentos en Storage) | ⏳ | plan acordado: ver *Pendientes* |
 | Compras, Vehículos | ⏳ | `layout/navigation.ts` → `UPCOMING_MODULES` |
 
 ## Mapa del código (lo que no es obvio)
@@ -135,6 +137,13 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
   `next_date` se guarda (se puede elegir a mano); con `repeatMonths` y sin `nextDate` lo calcula el servidor.
   "Ya fui" = `POST /visits` con `completesVisitId` (marca `next_done` en la anterior). Agenda muestra controles
   pendientes y horas agendadas (consultas con fecha futura). La bitácora solo guarda nombres de campos.
+- Salud fase B: `health_trackers` (kind `replacement` | `medication`, CHECK en la base) + `health_tracker_events`. Recambio: ciclo
+  desde max(inicio, último "changed"). Medicamento: la toma n.º n = inicio + n×N horas **de reloj** (sin zona, en la del perfil);
+  se marca por número (`PUT /trackers/:id/doses/:n`). Cambiar día/hora/cada cuánto borra las tomas marcadas (los números ya no
+  calzan). La lista trae los últimos 60 eventos; la exportación, todos. `lastDoseNumber` (back) tiene **copia** `doseCount` en
+  `trackers.models.ts`. Salud usa `?vista=remedios` para la pestaña (Inicio enlaza ahí).
+- Inicio: "Primeros pasos" se esconde cuando están todos listos; tarjeta Salud = tomas por marcar, próxima toma (24 h),
+  recambios a ≤3 días y controles a ≤30 días.
 - Cuentas fijas: `bills` + `bill_payments` (uno por cuenta y mes, `period` = día 1). Cálculos en `modules/bills/bills.math.ts`
   (vence en el mes, estimado = promedio redondeado de los últimos 3 pagos o el monto anotado). Gasto base = suscripciones +
   cuentas fijas (lo pagado o el estimado) + cuotas. **No** crean movimientos (con la cartola se contarían dos veces): no tocan
@@ -172,10 +181,8 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 ## Pendientes
 
 - Aplicar las migraciones pendientes (`db:migrate:status`): `20261129000000_debts`, `20261130000000_profile_phone`,
-  `20261201000000_health_visits`, `20261202000000_bills`; luego push.
-- Salud fase B: recambios (nombre, cada N días, inicio, "Los cambié hoy") y medicamentos (cada N horas desde
-  una hora de inicio, desde/hasta, marcar tomada/omitida por toma), tarjeta en Inicio. Tablas
-  `health_trackers` + `health_tracker_events`.
+  `20261201000000_health_visits`, `20261202000000_bills`, `20261203000000_health_trackers`; luego push.
+- Salud fase B, después: recambios y tomas en la Agenda, aviso push/correo de la toma.
 - Salud fase C: documentos (PDF/JPG/PNG ≤10 MB) en bucket privado de Storage con URL firmada, asociables a una
   consulta; borrar archivos al eliminar la cuenta (requiere `SUPABASE_SECRET_KEY`).
 - Panel de Supabase → Auth: apagar "Confirm email", Site URL = dominio de producción, agregar
@@ -193,6 +200,8 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Historial (más reciente arriba, una línea por cambio)
 
+- 2026-11-27 · Salud fase B: recambios (lentes…) y medicamentos cada N horas, con tarjeta en Inicio. Inicio esconde "Primeros pasos" completos.
+- 2026-11-27 · Enlaces de volver con estilo propio (`.apana-back`), ya no como link subrayado.
 - 2026-11-27 · Finanzas → Cuentas fijas (agua, luz, internet…): pago de cada mes y suman al gasto base, Agenda y próximos pagos.
 - 2026-11-27 · Salud fase A: consultas por especialidad con "repetir en" y próximos controles, también en la Agenda.
 - 2026-11-27 · Amigos como lista de contactos (búsqueda + letras) con selector Amigos | Mensajes arriba.

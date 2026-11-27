@@ -541,3 +541,52 @@ model HealthVisit {
   @@map("health_visits")
   @@schema("app")
 }
+
+/// Salud fase B: recambios (lentes de contacto, cepillo…) cada N días y medicamentos cada N horas.
+model HealthTracker {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  /// 'replacement' (cada N días) o 'medication' (cada N horas).
+  kind        String    @db.VarChar(20)
+  name        String    @db.VarChar(80)
+  /// Recambio: cada cuántos días.
+  everyDays   Int?      @map("every_days") @db.SmallInt
+  /// Medicamento: cada cuántas horas.
+  everyHours  Int?      @map("every_hours") @db.SmallInt
+  /// Medicamento: hora de la primera toma, en minutos desde medianoche (hora local).
+  startMinute Int?      @map("start_minute") @db.SmallInt
+  startDate   DateTime  @map("start_date") @db.Date
+  /// Medicamento: último día del tratamiento (null = sin término).
+  endDate     DateTime? @map("end_date") @db.Date
+  notes       String?   @db.VarChar(500)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  events HealthTrackerEvent[]
+
+  @@index([userId])
+  @@map("health_trackers")
+  @@schema("app")
+}
+
+/// "Los cambié" (recambio, con día) o toma marcada (medicamento, por número de toma).
+model HealthTrackerEvent {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  trackerId  String    @map("tracker_id") @db.Uuid
+  /// 'changed', 'taken' o 'skipped'.
+  kind       String    @db.VarChar(20)
+  /// Recambio: día en que se cambió.
+  day        DateTime? @db.Date
+  /// Medicamento: n.º de toma desde la primera (0, 1, 2…).
+  doseNumber Int?      @map("dose_number")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tracker HealthTracker @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+
+  @@unique([trackerId, day])
+  @@unique([trackerId, doseNumber])
+  @@index([userId])
+  @@map("health_tracker_events")
+  @@schema("app")
+}

@@ -19,6 +19,7 @@ import type { BillsRepository } from './modules/bills/bills.repository.js';
 import { billsRoutes } from './modules/bills/bills.routes.js';
 import type { HealthRepository } from './modules/health/health.repository.js';
 import { healthRoutes } from './modules/health/health.routes.js';
+import type { HealthTrackersRepository } from './modules/health/health.trackers.repository.js';
 import type { FinanceRepository } from './modules/finance/finance.repository.js';
 import { financeRoutes } from './modules/finance/finance.routes.js';
 import type { FriendsRepository } from './modules/friends/friends.repository.js';
@@ -42,6 +43,7 @@ export interface AppDeps {
   chat: ChatRepository;
   debts: DebtsRepository;
   health: HealthRepository;
+  healthTrackers: HealthTrackersRepository;
   bills: BillsRepository;
   /** Tipo de cambio a CLP (dólar y euro observados). */
   rates: ExchangeRates;

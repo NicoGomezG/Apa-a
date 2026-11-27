@@ -173,8 +173,8 @@ export class PersonasMensajes {
   selector: 'app-personas-conversacion',
   imports: [RouterLink, ChatThread],
   template: `
-    <a class="d-inline-block mb-3" routerLink="/personas/mensajes">
-      <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>Mensajes
+    <a class="apana-back" routerLink="/personas/mensajes">
+      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>Mensajes
     </a>
     @if (chatKind(); as k) {
       <section class="apana-card">

@@ -21,8 +21,8 @@ interface PaymentDraft {
   selector: 'app-personas-compartido-conmigo',
   imports: [FormsModule, RouterLink, MoneyPipe],
   template: `
-    <a class="d-inline-block mb-3" routerLink="/personas/gastos">
-      <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>Gastos compartidos
+    <a class="apana-back" routerLink="/personas/gastos">
+      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>Gastos compartidos
     </a>
 
     @if (status(); as s) {

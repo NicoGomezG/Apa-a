@@ -5,8 +5,9 @@ import { day, optionalText, text } from '../../lib/schemas.js';
 import { currentUser } from '../../plugins/auth.js';
 import type { AuditRepository } from '../audit/audit.repository.js';
 import { type HealthRepository, type HealthVisitInput, REPEAT_MONTHS } from './health.repository.js';
+import { type HealthTrackersRoutesDeps, healthTrackersRoutes } from './health.trackers.routes.js';
 
-export interface HealthRoutesDeps {
+export interface HealthRoutesDeps extends HealthTrackersRoutesDeps {
   health: HealthRepository;
   audit: AuditRepository;
 }
@@ -52,9 +53,10 @@ const updateBody = z
   .partial()
   .refine((value) => Object.values(value).some((item) => item !== undefined), 'Sin cambios');
 
-/** Salud: consultas con especialistas y próximos controles. */
+/** Salud: consultas con especialistas y próximos controles; recambios y medicamentos en `health.trackers.routes.ts`. */
 export const healthRoutes: FastifyPluginAsyncZod<HealthRoutesDeps> = async (app, deps) => {
   app.addHook('onRequest', app.authenticate);
+  await app.register(healthTrackersRoutes, { healthTrackers: deps.healthTrackers, audit: deps.audit });
 
   // Solo acción e id: nunca especialidad, profesional, notas ni fechas (son datos médicos).
   const audit = (userId: string, action: 'health.visit.created' | 'health.visit.deleted', id: string) =>

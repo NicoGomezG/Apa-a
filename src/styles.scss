@@ -254,3 +254,25 @@ h3, .h3 { line-height: 1.56; }
 .text-capitalize-first::first-letter {
   text-transform: uppercase;
 }
+
+// Enlace de volver (← Gastos compartidos, ← Mensajes): botón fantasma, sin subrayado.
+.apana-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem -0.6rem;
+  padding: 0.35rem 0.75rem 0.35rem 0.6rem;
+  border-radius: $apana-radius-pill;
+  color: $apana-ink-soft;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s;
+
+  i { font-size: 0.75rem; }
+
+  &:hover, &:focus-visible {
+    background: darken($apana-bg, 4%);
+    color: $apana-ink;
+  }
+}

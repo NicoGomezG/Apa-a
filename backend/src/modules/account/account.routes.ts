@@ -14,6 +14,7 @@ import type { ChatRepository } from '../chat/chat.repository.js';
 import type { DebtsRepository } from '../debts/debts.repository.js';
 import type { BillsRepository } from '../bills/bills.repository.js';
 import type { HealthRepository } from '../health/health.repository.js';
+import type { HealthTrackersRepository } from '../health/health.trackers.repository.js';
 import type { AccountRepository } from './account.repository.js';
 
 export const DELETE_CONFIRMATION = 'ELIMINAR MI CUENTA';
@@ -31,6 +32,7 @@ export interface AccountRoutesDeps {
   chat: ChatRepository;
   debts: DebtsRepository;
   health: HealthRepository;
+  healthTrackers: HealthTrackersRepository;
   bills: BillsRepository;
 }
 
@@ -50,7 +52,10 @@ export const accountRoutes: FastifyPluginAsyncZod<AccountRoutesDeps> = async (ap
       const people = await deps.people.exportAll(user.id);
       const debts = await deps.debts.list(user.id);
       const bills = await deps.bills.list(user.id);
-      const health = { visits: await deps.health.listVisits(user.id) };
+      const health = {
+        visits: await deps.health.listVisits(user.id),
+        trackers: await deps.healthTrackers.listTrackers(user.id, true),
+      };
       // De cada amigo solo se exporta el vínculo: su nombre y cumpleaños son datos de esa persona.
       const friends = (await deps.friends.listFriends(user.id)).map(({ userId, since, contactId }) => ({
         friendUserId: userId,

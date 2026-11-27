@@ -1,0 +1,116 @@
+.min-w-0 {
+  min-width: 0;
+}
+
+.accent {
+  color: var(--apana-section-color);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+
+  .btn.active {
+    background: var(--bs-emphasis-color);
+    border-color: var(--bs-emphasis-color);
+    color: var(--bs-body-bg);
+  }
+}
+
+.hours {
+  width: 5rem;
+}
+
+.end-date {
+  max-width: 11rem;
+}
+
+.spec-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--apana-section-color) 12%, transparent);
+  color: var(--apana-section-color);
+}
+
+.item {
+  padding: 0.75rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 10px;
+
+  &.late {
+    border-color: color-mix(in srgb, var(--bs-danger) 45%, var(--bs-border-color));
+  }
+}
+
+.badge {
+  font-weight: 600;
+}
+
+.status-late {
+  background: var(--bs-danger);
+  color: #fff;
+}
+
+.status-soon {
+  background: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+}
+
+.status-ok {
+  background: var(--bs-success-bg-subtle);
+  color: var(--bs-success-text-emphasis);
+}
+
+.doses {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.dose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: var(--bs-tertiary-bg);
+  font-size: 0.875rem;
+
+  .time {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-width: 2.75rem;
+  }
+
+  .state {
+    color: var(--apana-ink-soft);
+  }
+
+  &.dose-due {
+    background: color-mix(in srgb, var(--bs-danger) 8%, var(--bs-body-bg));
+
+    .state {
+      color: var(--bs-danger);
+      font-weight: 500;
+    }
+  }
+}
+
+.progress {
+  height: 0.375rem;
+  border-radius: 6px;
+
+  .progress-bar {
+    background: var(--apana-section-color);
+  }
+}
+
+.notes {
+  white-space: pre-line;
+  color: var(--apana-ink-soft);
+}

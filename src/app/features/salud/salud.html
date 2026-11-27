@@ -2,8 +2,22 @@
   title="Salud"
   icon="fa-heart-pulse"
   module="salud"
-  subtitle="Tus consultas con especialistas y cuándo te toca volver."
+  subtitle="Tus consultas, remedios y recambios, y cuándo te toca cada cosa."
 />
+
+<nav class="segmented mb-3" aria-label="Secciones de salud">
+  <a routerLink="/salud" [class.active]="view() === 'consultas'" [attr.aria-current]="view() === 'consultas' ? 'page' : null">
+    <i class="fa-solid fa-user-doctor" aria-hidden="true"></i>Consultas
+  </a>
+  <a routerLink="/salud" [queryParams]="{ vista: 'remedios' }" [class.active]="view() === 'remedios'"
+     [attr.aria-current]="view() === 'remedios' ? 'page' : null">
+    <i class="fa-solid fa-pills" aria-hidden="true"></i>Remedios y recambios
+  </a>
+</nav>
+
+@if (view() === 'remedios') {
+  <app-salud-trackers />
+} @else {
 
 @if (status(); as s) {
   <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
@@ -244,4 +258,5 @@
       </section>
     </div>
   </div>
+}
 }

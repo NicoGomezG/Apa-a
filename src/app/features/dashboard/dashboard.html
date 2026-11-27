@@ -5,6 +5,7 @@
   </h1>
 </header>
 
+@if (stepsPending()) {
 <section class="apana-card mb-4" aria-labelledby="primeros-pasos">
   <h2 id="primeros-pasos" class="apana-section-title">
     <i class="fa-solid fa-flag-checkered" aria-hidden="true"></i>
@@ -29,6 +30,7 @@
     }
   </ul>
 </section>
+}
 
 <div class="apana-grid">
   @for (section of sections; track section.key) {
@@ -67,6 +69,19 @@
           }
         </ul>
         <a class="btn btn-sm btn-outline-primary" [routerLink]="section.path">Ver personas</a>
+      } @else if (section.key === 'salud' && healthItems().length > 0) {
+        <ul class="list-unstyled d-grid gap-2 mb-3">
+          @for (item of healthItems(); track item.key) {
+            <li class="d-flex align-items-start gap-2">
+              <i class="fa-solid {{ item.icon }} mt-1" [class.text-danger]="item.urgent" [style.color]="item.urgent ? null : 'var(--apana-section-color)'" aria-hidden="true"></i>
+              <div class="min-w-0">
+                <div class="fw-semibold text-truncate">{{ item.label }}</div>
+                <div class="small" [class.text-danger]="item.urgent">{{ item.detail }}</div>
+              </div>
+            </li>
+          }
+        </ul>
+        <a class="btn btn-sm btn-outline-primary" routerLink="/salud" [queryParams]="{ vista: 'remedios' }">Ver salud</a>
       } @else if (section.key === 'agenda' && nextHoliday(); as holiday) {
         <p class="mb-1">Próximo feriado</p>
         <p class="fw-semibold mb-3">

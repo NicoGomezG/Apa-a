@@ -1,5 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { map } from 'rxjs';
 import { formatDay, todayIn } from '../../core/format/format';
 import { apiErrorMessage } from '../../core/http-errors';
 import { ProfileService } from '../../core/profile/profile.service';
@@ -20,6 +23,7 @@ import {
   specialtyIcon,
 } from './salud.models';
 import { HealthService } from './salud.service';
+import { SaludTrackers } from './trackers';
 
 type Status = { kind: 'success' | 'error'; message: string } | null;
 /** "Repetir en" del formulario: sin repetir, 1/6/12 meses o una fecha elegida a mano. */
@@ -40,7 +44,7 @@ interface Draft {
 
 @Component({
   selector: 'app-salud',
-  imports: [FormsModule, PageHeader, EmptyState],
+  imports: [FormsModule, RouterLink, PageHeader, EmptyState, SaludTrackers],
   host: { style: '--apana-section-color: var(--apana-module-salud)' },
   templateUrl: './salud.html',
   styleUrl: './salud.scss',
@@ -56,6 +60,12 @@ export class Salud {
   protected readonly icon = specialtyIcon;
   protected readonly formatDay = formatDay;
   protected readonly relativeDays = relativeDays;
+
+  /** Pestaña: consultas o remedios y recambios (?vista=remedios, para enlazar desde Inicio). */
+  protected readonly view = toSignal(
+    inject(ActivatedRoute).queryParamMap.pipe(map((params) => (params.get('vista') === 'remedios' ? 'remedios' : 'consultas'))),
+    { initialValue: 'consultas' as const },
+  );
 
   protected readonly today = signal(todayIn(this.profile.timezone()));
   protected readonly visits = signal<HealthVisit[]>([]);
