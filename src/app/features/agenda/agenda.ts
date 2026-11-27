@@ -9,9 +9,24 @@ import { apiErrorMessage } from '../../core/http-errors';
 import { ProfileService } from '../../core/profile/profile.service';
 import { MonthPicker } from '../../shared/ui/month-picker';
 import { PageHeader } from '../../shared/ui/page-header';
-import type { CalendarPayment, PaymentStatus } from '../finanzas/finance.models';
+import {
+  type CalendarPayment,
+  PAYMENT_SHORT_LABELS,
+  PAYMENT_TYPE_LABELS,
+  type PaymentStatus,
+  paymentIcon,
+} from '../finanzas/finance.models';
 import { FinanceService } from '../finanzas/finance.service';
 import { PeopleService } from '../personas/people.service';
+import type { HealthVisit } from '../salud/salud.models';
+import { HealthService } from '../salud/salud.service';
+
+/** Control pendiente u hora agendada de Salud, para el calendario. */
+export interface HealthEvent {
+  key: string;
+  kind: 'control' | 'appointment';
+  label: string;
+}
 
 export const STATUS_LABELS: Record<PaymentStatus, string> = {
   paid: 'Pagado',
@@ -34,6 +49,7 @@ interface Cell extends GridDay {
   isToday: boolean;
   payments: CalendarPayment[];
   birthdays: UpcomingBirthday[];
+  health: HealthEvent[];
   ariaLabel: string;
 }
 
@@ -48,9 +64,13 @@ export class Agenda {
   private readonly finance = inject(FinanceService);
   private readonly profile = inject(ProfileService);
   private readonly people = inject(PeopleService);
+  private readonly healthService = inject(HealthService);
 
   protected readonly weekdays = WEEKDAY_LABELS;
   protected readonly statusLabels = STATUS_LABELS;
+  protected readonly paymentIcon = paymentIcon;
+  protected readonly paymentTypeLabels = PAYMENT_TYPE_LABELS;
+  protected readonly paymentShortLabels = PAYMENT_SHORT_LABELS;
   protected readonly statusIcons = STATUS_ICONS;
   protected readonly formatDay = formatDay;
 
@@ -63,6 +83,21 @@ export class Agenda {
   protected readonly contacts = signal<BirthdayPerson[]>([]);
   protected readonly birthdays = computed(() => birthdaysInMonth(this.contacts(), this.month()));
   protected readonly birthdayList = computed(() => [...this.birthdays().values()].flat());
+  protected readonly visits = signal<HealthVisit[]>([]);
+  /** Controles pendientes (por su fecha) y horas agendadas desde hoy, por día. */
+  protected readonly health = computed(() => {
+    const byDay = new Map<string, HealthEvent[]>();
+    const add = (date: string, event: HealthEvent) => byDay.set(date, [...(byDay.get(date) ?? []), event]);
+    for (const visit of this.visits()) {
+      if (visit.nextDate && !visit.nextDone) {
+        add(visit.nextDate, { key: 'c-' + visit.id, kind: 'control', label: 'Control de ' + visit.specialty });
+      }
+      if (visit.visitDate >= this.today()) {
+        add(visit.visitDate, { key: 'a-' + visit.id, kind: 'appointment', label: 'Hora: ' + visit.specialty });
+      }
+    }
+    return byDay;
+  });
 
   protected readonly monthLabel = computed(() => formatMonth(this.month()));
   protected readonly holidays = computed(() => holidaysInMonth(this.month()));
@@ -72,6 +107,7 @@ export class Agenda {
   protected readonly weeks = computed<Cell[][]>(() => {
     const holidays = this.holidays();
     const birthdays = this.birthdays();
+    const health = this.health();
     const today = this.today();
     const byDay = new Map<string, CalendarPayment[]>();
     for (const payment of this.payments()) {
@@ -82,9 +118,11 @@ export class Agenda {
         const holiday = day.inMonth ? (holidays.get(day.date) ?? null) : null;
         const payments = day.inMonth ? (byDay.get(day.date) ?? []) : [];
         const dayBirthdays = day.inMonth ? (birthdays.get(day.date) ?? []) : [];
+        const dayHealth = day.inMonth ? (health.get(day.date) ?? []) : [];
         const parts = [longDay(day.date)];
         if (holiday) parts.push(`feriado: ${holiday.name}`);
         if (dayBirthdays.length) parts.push(`cumpleaños de ${dayBirthdays.map((item) => item.person.name).join(' y ')}`);
+        if (dayHealth.length) parts.push(dayHealth.map((item) => item.label).join(', '));
         if (payments.length) parts.push(payments.length === 1 ? '1 pago' : `${payments.length} pagos`);
         return {
           ...day,
@@ -93,6 +131,7 @@ export class Agenda {
           isToday: day.date === today,
           payments,
           birthdays: dayBirthdays,
+          health: dayHealth,
           ariaLabel: parts.join(', '),
         };
       }),
@@ -108,6 +147,7 @@ export class Agenda {
       sunday: new Date(`${date}T12:00:00Z`).getUTCDay() === 0,
       payments: this.payments().filter((payment) => payment.date === date),
       birthdays: this.birthdays().get(date) ?? [],
+      health: this.health().get(date) ?? [],
     };
   });
 
@@ -134,6 +174,11 @@ export class Agenda {
     void this.people
       .birthdayPeople()
       .then((people) => this.contacts.set(people))
+      .catch(() => undefined);
+    // Salud es opcional en la Agenda: si falla, el calendario sigue con lo demás.
+    void this.healthService
+      .visits()
+      .then((visits) => this.visits.set(visits))
       .catch(() => undefined);
   }
 

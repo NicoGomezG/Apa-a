@@ -95,6 +95,7 @@ model FinancialAccount {
   plans         InstallmentPlan[]
   statements    CardStatement[]
   subscriptions Subscription[]
+  bills         Bill[]
 
   @@index([userId])
   @@map("financial_accounts")
@@ -199,6 +200,57 @@ model Subscription {
 
   @@index([userId])
   @@map("subscriptions")
+  @@schema("app")
+}
+
+/// Cuenta fija (agua, luz, internet…): monto estimado que entra al gasto base. El monto real
+/// de cada mes se anota en bill_payments.
+model Bill {
+  id          String            @id @default(uuid(7)) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  name        String            @db.VarChar(80)
+  /// Tipo de la lista base (agua, luz, gas, internet…) u 'otra'.
+  kind        String            @db.VarChar(24)
+  company     String?           @db.VarChar(60)
+  /// Monto estimado (se usa mientras no haya pagos para promediar).
+  amount      BigInt
+  currency    String            @default("CLP") @db.Char(3)
+  /// Día de vencimiento (1–31; en meses cortos, el último día).
+  dueDay      Int               @map("due_day") @db.SmallInt
+  /// Cada cuántos meses vence: 1, 2 o 12.
+  everyMonths Int               @default(1) @map("every_months") @db.SmallInt
+  /// Primer mes en que vence (día 1 de ese mes); de ahí salen los siguientes.
+  startMonth  DateTime          @map("start_month") @db.Date
+  accountId   String?           @map("account_id") @db.Uuid
+  /// Se paga sola (PAC / cargo automático).
+  autopay     Boolean           @default(false)
+  active      Boolean           @default(true)
+  notes       String?           @db.VarChar(500)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account     FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  payments    BillPayment[]
+
+  @@index([userId])
+  @@map("bills")
+  @@schema("app")
+}
+
+/// Pago de una cuenta fija en un mes (uno por mes).
+model BillPayment {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  billId    String   @map("bill_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// Mes que se paga (día 1).
+  period    DateTime @db.Date
+  amount    BigInt
+  paidOn    DateTime @map("paid_on") @db.Date
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  bill      Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@unique([billId, period])
+  @@index([userId])
+  @@map("bill_payments")
   @@schema("app")
 }
 
@@ -461,5 +513,31 @@ model DebtPayment {
   @@index([debtId])
   @@index([userId])
   @@map("debt_payments")
+  @@schema("app")
+}
+
+/// Salud: consultas con especialistas y su próximo control. Datos médicos: la bitácora nunca guarda
+/// especialidad, profesional ni notas.
+model HealthVisit {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  /// Especialidad (de la lista base o escrita a mano).
+  specialty    String    @db.VarChar(60)
+  professional String?   @db.VarChar(80)
+  place        String?   @db.VarChar(120)
+  /// Día de la consulta (puede ser futuro: hora agendada).
+  visitDate    DateTime  @map("visit_date") @db.Date
+  /// "Repetir en": 1, 6 o 12 meses; null = sin repetir o fecha a mano.
+  repeatMonths Int?      @map("repeat_months") @db.SmallInt
+  /// Próximo control (calculado desde repeatMonths o elegido a mano).
+  nextDate     DateTime? @map("next_date") @db.Date
+  /// true cuando ya se registró la consulta de ese control ("Ya fui").
+  nextDone     Boolean   @default(false) @map("next_done")
+  notes        String?   @db.VarChar(1000)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("health_visits")
   @@schema("app")
 }

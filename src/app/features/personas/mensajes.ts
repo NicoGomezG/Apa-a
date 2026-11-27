@@ -4,6 +4,7 @@ import { DEFAULT_LOCALE } from '../../core/format/format';
 import { apiErrorMessage } from '../../core/http-errors';
 import { ProfileService } from '../../core/profile/profile.service';
 import { EmptyState } from '../../shared/ui/empty-state';
+import { AmigosTabs } from './amigos-tabs';
 import { ChatThread } from './chat-thread';
 import { CHAT_ROUTE_KIND, type ChatKind, ChatService, type ChatThreadSummary } from './chat.service';
 
@@ -16,8 +17,9 @@ const threadTitle = (thread: Pick<ChatThreadSummary, 'kind' | 'title' | 'readOnl
 /** Lista de conversaciones con amigos y grupos de gastos. */
 @Component({
   selector: 'app-personas-mensajes',
-  imports: [RouterLink, EmptyState],
+  imports: [RouterLink, EmptyState, AmigosTabs],
   template: `
+    <app-amigos-tabs />
     @if (error(); as message) {
       <div class="alert alert-danger py-2" role="alert">{{ message }}</div>
     }

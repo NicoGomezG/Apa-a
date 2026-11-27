@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { badRequest, notFound } from '../../lib/errors.js';
 import { currentUser } from '../../plugins/auth.js';
 import type { AuditRepository } from '../audit/audit.repository.js';
+import type { BillsRepository } from '../bills/bills.repository.js';
 import { ensureProfile } from '../profile/profile.routes.js';
 import type { ProfileRepository } from '../profile/profile.repository.js';
 import {
@@ -38,6 +39,8 @@ export interface FinanceRoutesDeps {
   audit: AuditRepository;
   /** Opcional: sin él, las suscripciones en otra moneda no se convierten. */
   rates?: ExchangeRates;
+  /** Opcional: sin él, el gasto base y la Agenda no incluyen cuentas fijas. */
+  bills?: BillsRepository;
   /** Reloj inyectable para pruebas. */
   now?: () => Date;
 }
@@ -561,6 +564,7 @@ export const financeRoutes: FastifyPluginAsyncZod<FinanceRoutesDeps> = async (ap
       deps.finance.listSubscriptions(user.id),
       deps.finance.listStatements(user.id),
     ]);
+    const bills = deps.bills ? await deps.bills.list(user.id) : [];
 
     // Tipo de cambio solo para las monedas de suscripciones activas (hoy: a CLP).
     const rates = new Map<string, ExchangeRate>();
@@ -581,6 +585,7 @@ export const financeRoutes: FastifyPluginAsyncZod<FinanceRoutesDeps> = async (ap
         plans,
         subscriptions,
         statements,
+        bills,
       }),
     );
   });
@@ -598,11 +603,12 @@ export const financeRoutes: FastifyPluginAsyncZod<FinanceRoutesDeps> = async (ap
       deps.finance.listSubscriptions(user.id),
       deps.finance.listStatements(user.id),
     ]);
+    const bills = deps.bills ? await deps.bills.list(user.id) : [];
 
     return toJson({
       month: target,
       today: todayDay,
-      payments: computeCalendar({ month: target, today: todayDay, accounts, transactions, plans, subscriptions, statements }),
+      payments: computeCalendar({ month: target, today: todayDay, accounts, transactions, plans, subscriptions, statements, bills }),
     });
   });
 };

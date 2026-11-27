@@ -15,6 +15,10 @@ import { chatRoutes } from './modules/chat/chat.routes.js';
 import type { AuditRepository } from './modules/audit/audit.repository.js';
 import type { DebtsRepository } from './modules/debts/debts.repository.js';
 import { debtsRoutes } from './modules/debts/debts.routes.js';
+import type { BillsRepository } from './modules/bills/bills.repository.js';
+import { billsRoutes } from './modules/bills/bills.routes.js';
+import type { HealthRepository } from './modules/health/health.repository.js';
+import { healthRoutes } from './modules/health/health.routes.js';
 import type { FinanceRepository } from './modules/finance/finance.repository.js';
 import { financeRoutes } from './modules/finance/finance.routes.js';
 import type { FriendsRepository } from './modules/friends/friends.repository.js';
@@ -37,6 +41,8 @@ export interface AppDeps {
   friends: FriendsRepository;
   chat: ChatRepository;
   debts: DebtsRepository;
+  health: HealthRepository;
+  bills: BillsRepository;
   /** Tipo de cambio a CLP (dólar y euro observados). */
   rates: ExchangeRates;
   /** Reloj inyectable (pruebas). Por defecto, la hora real. */
@@ -87,10 +93,12 @@ export async function buildApp(env: Env, deps: AppDeps): Promise<FastifyInstance
       await api.register(accountRoutes, deps);
       await api.register(financeRoutes, { ...deps, prefix: '/finance' });
       await api.register(debtsRoutes, { ...deps, prefix: '/finance/debts' });
+      await api.register(billsRoutes, { ...deps, prefix: '/finance/bills' });
       await api.register(peopleRoutes, { ...deps, prefix: '/people' });
       await api.register(sharedGroupRoutes, { ...deps, prefix: '/people/shared' });
       await api.register(friendsRoutes, { ...deps, prefix: '/friends' });
       await api.register(chatRoutes, { ...deps, prefix: '/chats' });
+      await api.register(healthRoutes, { ...deps, prefix: '/health' });
       // Sin sesión: enlaces de solo lectura para invitados.
       await api.register(publicSplitRoutes, { people: deps.people, prefix: '/public' });
     },

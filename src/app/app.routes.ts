@@ -85,6 +85,11 @@ export const routes: Routes = [
             loadComponent: () => import('./features/finanzas/suscripciones').then((m) => m.FinanzasSuscripciones),
           },
           {
+            path: 'cuentas-fijas',
+            title: 'Cuentas fijas · Finanzas · Apaña',
+            loadComponent: () => import('./features/finanzas/cuentas-fijas').then((m) => m.FinanzasCuentasFijas),
+          },
+          {
             path: 'deudas',
             title: 'Deudas · Finanzas · Apaña',
             loadComponent: () => import('./features/finanzas/deudas').then((m) => m.FinanzasDeudas),
@@ -151,7 +156,11 @@ export const routes: Routes = [
       },
       upcoming('compras', 'Compras'),
       upcoming('vehiculos', 'Vehículos'),
-      upcoming('salud', 'Salud'),
+      {
+        path: 'salud',
+        title: 'Salud · Apaña',
+        loadComponent: () => import('./features/salud/salud').then((m) => m.Salud),
+      },
       {
         path: 'ajustes',
         title: 'Ajustes · Apaña',

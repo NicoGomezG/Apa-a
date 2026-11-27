@@ -1,0 +1,321 @@
+@if (status(); as s) {
+  <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
+    {{ s.message }}
+  </div>
+}
+
+<!-- Mes y totales -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div class="month-nav">
+    <button type="button" class="btn btn-sm btn-outline-primary" (click)="changeMonth(-1)" aria-label="Mes anterior">
+      <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+    </button>
+    <span class="label text-capitalize" aria-live="polite">{{ formatMonth(month()) }}</span>
+    <button type="button" class="btn btn-sm btn-outline-primary" (click)="changeMonth(1)" aria-label="Mes siguiente">
+      <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+    </button>
+  </div>
+  <button type="button" class="btn btn-sm btn-primary" (click)="openNew()">
+    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Agregar cuenta
+  </button>
+</div>
+
+@if (data(); as d) {
+  @if (bills().length > 0) {
+    <div class="totals mb-3">
+      <section class="apana-card total-card" aria-labelledby="total-mes">
+        <h2 id="total-mes" class="text-caption mb-0">Cuentas del mes</h2>
+        <span class="display-stat">{{ d.totals.expected | money: d.currency }}</span>
+        <span class="small">Pagado o estimado: suma en tu gasto base.</span>
+      </section>
+      <section class="apana-card total-card" aria-labelledby="total-pagado">
+        <h2 id="total-pagado" class="text-caption mb-0">Pagado</h2>
+        <span class="display-stat">{{ d.totals.paid | money: d.currency }}</span>
+      </section>
+      <section class="apana-card total-card" aria-labelledby="total-falta">
+        <h2 id="total-falta" class="text-caption mb-0">Falta pagar</h2>
+        <span class="display-stat">{{ d.totals.pending | money: d.currency }}</span>
+        @if (overdueCount() > 0) {
+          <span class="small text-danger fw-semibold">{{ overdueCount() === 1 ? '1 cuenta vencida' : overdueCount() + ' cuentas vencidas' }}</span>
+        }
+      </section>
+    </div>
+  }
+}
+
+<!-- Formulario -->
+@if (formOpen()) {
+  <section class="apana-card mb-3" id="form-cuenta-fija" aria-labelledby="form-cuenta-fija-titulo">
+    <h2 id="form-cuenta-fija-titulo" class="apana-section-title">
+      <i class="fa-solid fa-pen" aria-hidden="true"></i>{{ editingId() ? 'Editar cuenta' : 'Agregar cuenta fija' }}
+    </h2>
+    <form class="row g-3" (ngSubmit)="save()">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="billKind">Tipo</label>
+        <select id="billKind" name="kind" class="form-select" [ngModel]="draft.kind" (ngModelChange)="kindChanged($event)">
+          @for (item of kinds; track item.key) {
+            <option [value]="item.key">{{ item.label }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="billName">Nombre</label>
+        <input id="billName" name="name" class="form-control" maxlength="80" placeholder="Ej: Luz depto" [(ngModel)]="draft.name" required />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="billCompany">Empresa <span class="fw-normal">(opcional)</span></label>
+        <input id="billCompany" name="company" class="form-control" maxlength="60" placeholder="Ej: Aguas Andinas, Enel, VTR" [(ngModel)]="draft.company" />
+      </div>
+      <div class="col-7 col-md-4">
+        <label class="form-label" for="billAmount">Monto estimado</label>
+        <input id="billAmount" name="amount" class="form-control" inputmode="decimal" placeholder="25.000" [(ngModel)]="draft.amount" required />
+      </div>
+      <div class="col-5 col-md-2">
+        <label class="form-label" for="billCurrency">Moneda</label>
+        <select id="billCurrency" name="currency" class="form-select" [(ngModel)]="draft.currency">
+          @for (currency of currencies; track currency) {
+            <option [value]="currency">{{ currency }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12">
+        <div class="form-text mt-0">Cuando anotes lo que pagas cada mes, usamos el promedio de los últimos 3 pagos.</div>
+      </div>
+      <div class="col-5 col-md-3">
+        <label class="form-label" for="billDueDay">Vence el día</label>
+        <input id="billDueDay" name="dueDay" type="number" min="1" max="31" class="form-control" placeholder="20" [(ngModel)]="draft.dueDay" required />
+      </div>
+      <div class="col-7 col-md-4">
+        <label class="form-label" for="billEvery">Frecuencia</label>
+        <select id="billEvery" name="everyMonths" class="form-select" [(ngModel)]="draft.everyMonths">
+          @for (item of frequencies; track item.value) {
+            <option [ngValue]="item.value">{{ item.label }}</option>
+          }
+        </select>
+      </div>
+      @if (draft.everyMonths !== 1) {
+        <div class="col-12 col-md-5">
+          <label class="form-label" for="billStart">Mes del próximo cobro</label>
+          <input id="billStart" name="startMonth" type="month" class="form-control" [(ngModel)]="draft.startMonth" required />
+        </div>
+      }
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="billAccount">Se paga con <span class="fw-normal">(opcional)</span></label>
+        <select id="billAccount" name="accountId" class="form-select" [(ngModel)]="draft.accountId">
+          <option value="">Sin indicar</option>
+          @for (account of accounts(); track account.id) {
+            <option [value]="account.id">{{ account.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-6 d-flex align-items-end">
+        <div class="form-check form-switch mb-2">
+          <input class="form-check-input" type="checkbox" role="switch" id="billAutopay" name="autopay" [(ngModel)]="draft.autopay" />
+          <label class="form-check-label" for="billAutopay">Se paga sola (PAC o cargo automático)</label>
+        </div>
+      </div>
+      <div class="col-12">
+        <label class="form-label" for="billNotes">Notas <span class="fw-normal">(opcional)</span></label>
+        <textarea id="billNotes" name="notes" class="form-control" rows="2" maxlength="500" placeholder="N° de cliente, cómo se paga…" [(ngModel)]="draft.notes"></textarea>
+      </div>
+      <div class="col-12 d-flex flex-wrap gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="btn btn-light" type="button" (click)="closeForm()">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+<!-- Lista -->
+@if (loading() && !data()) {
+  <p role="status">Cargando…</p>
+} @else if (bills().length === 0) {
+  <section class="apana-card">
+    <app-empty-state
+      icon="fa-file-invoice-dollar"
+      title="Aún no agregas cuentas fijas"
+      description="Agrega el agua, la luz, internet, gastos comunes o el arriendo: se suman a tu gasto base para que sepas lo mínimo que necesitas cada mes."
+    />
+  </section>
+} @else {
+  <section class="apana-card p-0 mb-3" aria-labelledby="del-mes">
+    <h2 id="del-mes" class="apana-section-title p-3 pb-2 mb-0">
+      <i class="fa-solid fa-list-check" aria-hidden="true"></i>Vencen en <span class="text-lowercase ms-1">{{ formatMonth(month()) }}</span>
+    </h2>
+    @if (dueThisMonth().length === 0) {
+      <p class="px-3 pb-3 mb-0">Ninguna cuenta vence este mes.</p>
+    } @else {
+      <ul class="list-unstyled mb-0">
+        @for (bill of dueThisMonth(); track bill.id) {
+          <li class="bill">
+            <div class="bill-main">
+              <button type="button" class="bill-toggle" (click)="expandedId.set(expandedId() === bill.id ? null : bill.id)"
+                      [attr.aria-expanded]="expandedId() === bill.id" [attr.aria-controls]="'cuenta-' + bill.id">
+                <span class="kind-icon" aria-hidden="true"><i class="fa-solid {{ icon(bill.kind) }}"></i></span>
+                <span class="min-w-0 flex-grow-1">
+                  <span class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-semibold">{{ bill.name }}</span>
+                    <span class="badge status-{{ bill.status }}">{{ statusLabels[bill.status!] }}</span>
+                    @if (bill.autopay) {
+                      <span class="badge status-pending">PAC</span>
+                    }
+                  </span>
+                  <span class="d-block small text-truncate">
+                    @if (bill.payment; as p) {
+                      Pagada el {{ formatDay(p.paidOn) }}
+                    } @else {
+                      Vence el {{ formatDay(bill.dueDate!) }}
+                    }
+                    @if (bill.company) { · {{ bill.company }} }
+                  </span>
+                </span>
+              </button>
+              <div class="text-end flex-none ms-auto">
+                <div class="fw-semibold text-nowrap">
+                  @if (!bill.payment) { <span class="visually-hidden">Estimado: </span>≈ }{{ monthAmount(bill) | money: bill.currency }}
+                </div>
+                @if (bill.payment) {
+                  <button type="button" class="btn btn-sm btn-link p-0 small" (click)="startPay(bill)">Corregir</button>
+                } @else if (payingId() !== bill.id) {
+                  <button type="button" class="btn btn-sm btn-primary mt-1" (click)="startPay(bill)" [disabled]="busy()">
+                    <i class="fa-solid fa-check me-1" aria-hidden="true"></i>Pagada
+                  </button>
+                }
+              </div>
+            </div>
+
+            @if (payingId() === bill.id) {
+              <form class="pay-form mx-3 mb-3 row g-2 align-items-end" (ngSubmit)="pay(bill)">
+                <div class="col-6 col-sm-4">
+                  <label class="form-label small mb-1" [for]="'pay-amount-' + bill.id">¿Cuánto pagaste?</label>
+                  <input [id]="'pay-amount-' + bill.id" name="amount" class="form-control form-control-sm" inputmode="decimal"
+                         [(ngModel)]="payDraft.amount" required />
+                </div>
+                <div class="col-6 col-sm-4">
+                  <label class="form-label small mb-1" [for]="'pay-date-' + bill.id">¿Qué día?</label>
+                  <input [id]="'pay-date-' + bill.id" name="paidOn" type="date" class="form-control form-control-sm"
+                         [(ngModel)]="payDraft.paidOn" required />
+                </div>
+                <div class="col-12 col-sm-4 d-flex flex-wrap gap-2">
+                  <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Guardar</button>
+                  <button type="button" class="btn btn-sm btn-light" (click)="payingId.set(null)">Cancelar</button>
+                </div>
+              </form>
+            }
+
+            @if (expandedId() === bill.id) {
+              <div class="bill-detail" [id]="'cuenta-' + bill.id">
+                <ng-container *ngTemplateOutlet="detail; context: { $implicit: bill }" />
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+  @if (notThisMonth().length > 0) {
+    <section class="apana-card p-0 mb-3" aria-labelledby="otros-meses">
+      <h2 id="otros-meses" class="apana-section-title p-3 pb-2 mb-0">
+        <i class="fa-solid fa-calendar" aria-hidden="true"></i>No vencen este mes
+      </h2>
+      <ul class="list-unstyled mb-0">
+        @for (bill of notThisMonth(); track bill.id) {
+          <li class="bill">
+            <div class="bill-main">
+              <button type="button" class="bill-toggle" (click)="expandedId.set(expandedId() === bill.id ? null : bill.id)"
+                      [attr.aria-expanded]="expandedId() === bill.id" [attr.aria-controls]="'cuenta-' + bill.id">
+                <span class="kind-icon" aria-hidden="true"><i class="fa-solid {{ icon(bill.kind) }}"></i></span>
+                <span class="min-w-0 flex-grow-1">
+                  <span class="fw-semibold d-block">{{ bill.name }}</span>
+                  <span class="d-block small text-truncate">{{ frequencyLabel(bill) }} · {{ nextDueLabel(bill) }}</span>
+                </span>
+              </button>
+              <span class="fw-semibold text-nowrap flex-none ms-auto">≈ {{ bill.estimate | money: bill.currency }}</span>
+            </div>
+            @if (expandedId() === bill.id) {
+              <div class="bill-detail" [id]="'cuenta-' + bill.id">
+                <ng-container *ngTemplateOutlet="detail; context: { $implicit: bill }" />
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @if (paused().length > 0) {
+    <section class="apana-card p-0" aria-labelledby="pausadas">
+      <h2 id="pausadas" class="apana-section-title p-3 pb-2 mb-0">
+        <i class="fa-solid fa-pause" aria-hidden="true"></i>Pausadas <span class="fw-normal small ms-1">(no suman)</span>
+      </h2>
+      <ul class="list-unstyled mb-0">
+        @for (bill of paused(); track bill.id) {
+          <li class="bill">
+            <div class="bill-main muted-row">
+              <button type="button" class="bill-toggle" (click)="expandedId.set(expandedId() === bill.id ? null : bill.id)"
+                      [attr.aria-expanded]="expandedId() === bill.id" [attr.aria-controls]="'cuenta-' + bill.id">
+                <span class="kind-icon" aria-hidden="true"><i class="fa-solid {{ icon(bill.kind) }}"></i></span>
+                <span class="fw-semibold min-w-0 text-truncate">{{ bill.name }}</span>
+              </button>
+              <span class="text-nowrap flex-none ms-auto">{{ bill.estimate | money: bill.currency }}</span>
+            </div>
+            @if (expandedId() === bill.id) {
+              <div class="bill-detail" [id]="'cuenta-' + bill.id">
+                <ng-container *ngTemplateOutlet="detail; context: { $implicit: bill }" />
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+}
+
+<ng-template #detail let-bill>
+  <dl class="row small mb-2 g-1">
+    <dt class="col-5 col-sm-4 fw-medium">Tipo</dt>
+    <dd class="col-7 col-sm-8 mb-0">{{ kindLabel(bill.kind) }}</dd>
+    <dt class="col-5 col-sm-4 fw-medium">Vence</dt>
+    <dd class="col-7 col-sm-8 mb-0">El día {{ bill.dueDay }} · {{ frequencyLabel(bill) }}</dd>
+    <dt class="col-5 col-sm-4 fw-medium">Monto anotado</dt>
+    <dd class="col-7 col-sm-8 mb-0">{{ bill.amount | money: bill.currency }}</dd>
+    @if (accountName(bill.accountId); as account) {
+      <dt class="col-5 col-sm-4 fw-medium">Se paga con</dt>
+      <dd class="col-7 col-sm-8 mb-0">{{ account }}{{ bill.autopay ? ' (PAC)' : '' }}</dd>
+    }
+    @if (bill.notes) {
+      <dt class="col-5 col-sm-4 fw-medium">Notas</dt>
+      <dd class="col-7 col-sm-8 mb-0" style="white-space: pre-line">{{ bill.notes }}</dd>
+    }
+  </dl>
+  @if (bill.payments.length > 0) {
+    <p class="small fw-medium mb-1">Últimos pagos</p>
+    <ul class="list-unstyled history mb-2">
+      @for (p of bill.payments.slice(0, 6); track p.id) {
+        <li class="d-flex justify-content-between gap-2">
+          <span class="text-capitalize">{{ formatMonth(p.period, true) }}</span>
+          <span>{{ p.amount | money: bill.currency }}</span>
+        </li>
+      }
+    </ul>
+  }
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    @if (confirmDelete() === bill.id) {
+      <span class="small">¿Borrar esta cuenta y sus pagos anotados?</span>
+      <button type="button" class="btn btn-sm btn-danger" (click)="remove(bill)" [disabled]="busy()">Sí, borrar</button>
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDelete.set(null)">No</button>
+    } @else {
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="edit(bill)">
+        <i class="fa-solid fa-pen me-1" aria-hidden="true"></i>Editar
+      </button>
+      @if (bill.payment) {
+        <button type="button" class="btn btn-sm btn-outline-primary" (click)="unpay(bill)" [disabled]="busy()">Quitar el pago de este mes</button>
+      }
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="toggleActive(bill)" [disabled]="busy()">
+        {{ bill.active ? 'Pausar' : 'Reactivar' }}
+      </button>
+      <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="confirmDelete.set(bill.id)">Borrar</button>
+    }
+  </div>
+</ng-template>

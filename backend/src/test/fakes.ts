@@ -14,6 +14,8 @@ import type {
 import type { Preferences, ProfileRecord } from '../modules/profile/profile.repository.js';
 import { createFakeChat } from './fake-chat.js';
 import { createFakeDebts } from './fake-debts.js';
+import { createFakeHealth } from './fake-health.js';
+import { createFakeBills } from './fake-bills.js';
 import { createFakeFriends, createFakePeople } from './fake-people.js';
 
 export const testEnv: Env = {
@@ -218,6 +220,8 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
   /** Tipos de cambio de prueba: USD a 950 pesos; otras monedas sin valor. */
   const rates = new Map<string, ExchangeRate>([['USD', { currency: 'USD', micros: 950_000_000n, date: '2026-11-25' }]]);
   const debts = createFakeDebts(people);
+  const health = createFakeHealth();
+  const bills = createFakeBills((id) => finance.accounts.some((account) => account.id === id));
   const chat = createFakeChat(people, () => (now ? now() : new Date()));
   const auditLog: AuditEntry[] = [];
   const deletedAuthUsers: string[] = [];
@@ -287,6 +291,8 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
         friends.clearUser(userId);
         chat.clearUser(userId);
         debts.clearUser(userId);
+        health.clearUser(userId);
+        bills.clearUser(userId);
         people.clearUser(userId);
       },
     },
@@ -295,6 +301,8 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
     friends: friends.repo,
     chat: chat.repo,
     debts: debts.repo,
+    health: health.repo,
+    bills: bills.repo,
     rates: {
       async toClp(currency) {
         return rates.get(currency) ?? null;
@@ -310,6 +318,8 @@ export function createFakeDeps(users: AuthUser[] = [ALICE, BOB], now?: () => Dat
     friends,
     chat,
     debts,
+    health,
+    bills,
     rates,
     profiles,
     auditLog,

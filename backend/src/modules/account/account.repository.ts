@@ -23,6 +23,11 @@ export function createPrismaAccountRepository(prisma: PrismaClient): AccountRepo
         // Deudas: los abonos caen con su deuda, pero se borran por userId igual.
         prisma.debtPayment.deleteMany({ where: { userId } }),
         prisma.debt.deleteMany({ where: { userId } }),
+        // Cuentas fijas: los pagos caen con su cuenta, pero se borran por userId igual.
+        prisma.billPayment.deleteMany({ where: { userId } }),
+        prisma.bill.deleteMany({ where: { userId } }),
+        // Salud.
+        prisma.healthVisit.deleteMany({ where: { userId } }),
         // Amigos: invitaciones, amistades y todo enlace que otras personas tengan hacia esta cuenta.
         prisma.friendInvite.deleteMany({ where: { userId } }),
         prisma.friendship.deleteMany({ where: { OR: [{ userAId: userId }, { userBId: userId }] } }),

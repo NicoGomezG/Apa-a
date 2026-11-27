@@ -1,0 +1,247 @@
+<app-page-header
+  title="Salud"
+  icon="fa-heart-pulse"
+  module="salud"
+  subtitle="Tus consultas con especialistas y cuándo te toca volver."
+/>
+
+@if (status(); as s) {
+  <div class="alert py-2" [class.alert-success]="s.kind === 'success'" [class.alert-danger]="s.kind === 'error'" role="status">
+    {{ s.message }}
+  </div>
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <p class="mb-0">
+    @if (lateCount() > 0) {
+      <strong class="text-danger">{{ lateCount() === 1 ? 'Tienes 1 control atrasado.' : 'Tienes ' + lateCount() + ' controles atrasados.' }}</strong>
+    } @else if (controls().length > 0) {
+      Tienes {{ controls().length === 1 ? '1 control pendiente' : controls().length + ' controles pendientes' }}.
+    } @else {
+      Anota tus consultas y cuándo repetirlas: te avisamos aquí y en la Agenda.
+    }
+  </p>
+  <button type="button" class="btn btn-sm btn-primary" (click)="openNew()">
+    <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Anotar consulta
+  </button>
+</div>
+
+<!-- Formulario -->
+@if (formOpen()) {
+  <section class="apana-card mb-3" id="form-consulta" aria-labelledby="form-consulta-titulo">
+    <h2 id="form-consulta-titulo" class="apana-section-title">
+      <i class="fa-solid fa-pen" aria-hidden="true"></i>
+      {{ editingId() ? 'Editar consulta' : completing() ? 'Anotar el control de ' + completing()!.specialty : 'Anotar consulta' }}
+    </h2>
+    <form class="row g-3" (ngSubmit)="save()">
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="specialty">Especialidad</label>
+        <select id="specialty" name="specialty" class="form-select" [(ngModel)]="draft.specialty" required>
+          <option value="" disabled>Elige una</option>
+          @for (item of specialties; track item.name) {
+            <option [value]="item.name">{{ item.name }}</option>
+          }
+          <option [value]="other">Otra…</option>
+        </select>
+        @if (draft.specialty === other) {
+          <input name="customSpecialty" class="form-control mt-2" maxlength="60" placeholder="Ej: Endocrinología"
+                 aria-label="Especialidad" [(ngModel)]="draft.customSpecialty" required />
+        }
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="visitDate">Día de la consulta</label>
+        <input id="visitDate" name="visitDate" type="date" class="form-control" [(ngModel)]="draft.visitDate" required />
+        @if (draft.visitDate > today()) {
+          <div class="form-text">Es una fecha futura: queda como hora agendada.</div>
+        }
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="professional">Profesional <span class="fw-normal">(opcional)</span></label>
+        <input id="professional" name="professional" class="form-control" maxlength="80" placeholder="Ej: Dra. Rojas"
+               [(ngModel)]="draft.professional" />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label" for="place">Lugar <span class="fw-normal">(opcional)</span></label>
+        <input id="place" name="place" class="form-control" maxlength="120" placeholder="Ej: Clínica, Cesfam, consulta"
+               [(ngModel)]="draft.place" />
+      </div>
+
+      <fieldset class="col-12">
+        <legend class="form-label fs-6 mb-1">Repetir en</legend>
+        <div class="repeat-options" role="radiogroup">
+          <input type="radio" class="btn-check" name="repeat" id="repeat-none" value="none" [(ngModel)]="draft.repeat" />
+          <label class="btn btn-sm btn-outline-primary" for="repeat-none">Sin repetir</label>
+          @for (option of repeatOptions; track option.value) {
+            <input type="radio" class="btn-check" name="repeat" [id]="'repeat-' + option.value" [value]="'' + option.value"
+                   [(ngModel)]="draft.repeat" />
+            <label class="btn btn-sm btn-outline-primary" [for]="'repeat-' + option.value">{{ option.label }}</label>
+          }
+          <input type="radio" class="btn-check" name="repeat" id="repeat-custom" value="custom" [(ngModel)]="draft.repeat" />
+          <label class="btn btn-sm btn-outline-primary" for="repeat-custom">Elegir fecha</label>
+        </div>
+        @if (draft.repeat === 'custom') {
+          <label class="visually-hidden" for="nextDate">Fecha del próximo control</label>
+          <input id="nextDate" name="nextDate" type="date" class="form-control mt-2 next-date" [min]="draft.visitDate"
+                 [(ngModel)]="draft.nextDate" required />
+        }
+        @if (previewNext(); as next) {
+          <div class="form-text">
+            <i class="fa-solid fa-calendar-check accent me-1" aria-hidden="true"></i>Próximo control: <strong>{{ formatDay(next, true) }}</strong>
+          </div>
+        }
+      </fieldset>
+
+      <div class="col-12">
+        <label class="form-label" for="notes">Notas <span class="fw-normal">(opcional)</span></label>
+        <textarea id="notes" name="notes" class="form-control" rows="2" maxlength="1000"
+                  placeholder="Diagnóstico, indicaciones, receta…" [(ngModel)]="draft.notes"></textarea>
+      </div>
+      <div class="col-12 d-flex flex-wrap gap-2">
+        <button class="btn btn-primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="btn btn-light" type="button" (click)="closeForm()">Cancelar</button>
+      </div>
+    </form>
+  </section>
+}
+
+@if (loading()) {
+  <p role="status">Cargando…</p>
+} @else if (visits().length === 0) {
+  <section class="apana-card">
+    <app-empty-state
+      icon="fa-user-doctor"
+      title="Aún no anotas consultas"
+      description="Registra cuándo fuiste al oftalmólogo, al dentista o a control, y cada cuánto repetir: te avisamos cuando te toque."
+    />
+  </section>
+} @else {
+  <div class="row g-4">
+    <!-- Próximos controles -->
+    <div class="col-12 col-xl-5">
+      <section class="apana-card" aria-labelledby="proximos">
+        <h2 id="proximos" class="apana-section-title"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i>Próximos controles</h2>
+        @if (controls().length === 0) {
+          <p class="mb-0">No tienes controles pendientes. Al anotar una consulta, elige «Repetir en» para que aparezca aquí.</p>
+        } @else {
+          <ul class="list-unstyled mb-0 d-grid gap-3">
+            @for (item of controls(); track item.visit.id) {
+              <li class="control" [class.late]="item.status === 'late'">
+                <div class="d-flex align-items-start gap-2">
+                  <span class="spec-icon" aria-hidden="true"><i class="fa-solid {{ icon(item.visit.specialty) }}"></i></span>
+                  <div class="min-w-0 flex-grow-1">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                      <span class="fw-semibold">{{ item.visit.specialty }}</span>
+                      <span class="badge status-{{ item.status }}">{{ statusLabels[item.status] }}</span>
+                    </div>
+                    <div class="small">
+                      {{ formatDay(item.visit.nextDate, true) }} · {{ relativeDays(item.days) }}
+                      @if (item.visit.professional) {
+                        · {{ item.visit.professional }}
+                      }
+                    </div>
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  <button type="button" class="btn btn-sm btn-primary" (click)="markDone(item.visit)" [disabled]="busy()">
+                    <i class="fa-solid fa-check me-1" aria-hidden="true"></i>Ya fui
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="edit(item.visit)">Cambiar fecha</button>
+                  <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-auto" (click)="dropControl(item.visit)" [disabled]="busy()">
+                    Quitar control
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </div>
+
+    <!-- Historial -->
+    <div class="col-12 col-xl-7">
+      <section class="apana-card p-0" aria-labelledby="historial">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 pb-2">
+          <h2 id="historial" class="apana-section-title mb-0"><i class="fa-solid fa-notes-medical" aria-hidden="true"></i>Consultas</h2>
+          @if (usedSpecialties().length > 1) {
+            <label class="visually-hidden" for="filtro">Filtrar por especialidad</label>
+            <select id="filtro" class="form-select form-select-sm filter" [ngModel]="filter()" (ngModelChange)="filter.set($event)">
+              <option value="">Todas las especialidades</option>
+              @for (name of usedSpecialties(); track name) {
+                <option [value]="name">{{ name }}</option>
+              }
+            </select>
+          }
+        </div>
+        <ul class="list-unstyled mb-0">
+          @for (visit of history(); track visit.id) {
+            <li class="visit">
+              <button type="button" class="visit-main" (click)="expandedId.set(expandedId() === visit.id ? null : visit.id)"
+                      [attr.aria-expanded]="expandedId() === visit.id" [attr.aria-controls]="'consulta-' + visit.id">
+                <span class="spec-icon" aria-hidden="true"><i class="fa-solid {{ icon(visit.specialty) }}"></i></span>
+                <span class="min-w-0 flex-grow-1 text-start">
+                  <span class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-semibold">{{ visit.specialty }}</span>
+                    @if (isFuture(visit)) {
+                      <span class="badge status-soon">Hora agendada</span>
+                    }
+                  </span>
+                  <span class="d-block small text-truncate">
+                    {{ formatDay(visit.visitDate, true) }}
+                    @if (visit.professional) {
+                      · {{ visit.professional }}
+                    }
+                    @if (visit.place) {
+                      · {{ visit.place }}
+                    }
+                  </span>
+                </span>
+                <span class="small text-end flex-none next">
+                  @if (visit.nextDate && !visit.nextDone) {
+                    Control<br />{{ formatDay(visit.nextDate) }}
+                  } @else if (visit.nextDone) {
+                    <i class="fa-solid fa-circle-check text-success" aria-hidden="true"></i><span class="visually-hidden">Control cumplido</span>
+                  }
+                </span>
+              </button>
+              @if (expandedId() === visit.id) {
+                <div class="visit-detail" [id]="'consulta-' + visit.id">
+                  <dl class="facts mb-2">
+                    <dt>Repetir en</dt>
+                    <dd>
+                      @switch (visit.repeatMonths) {
+                        @case (1) { 1 mes }
+                        @case (6) { 6 meses }
+                        @case (12) { 1 año }
+                        @default { {{ visit.nextDate ? 'Fecha elegida' : 'Sin repetir' }} }
+                      }
+                    </dd>
+                    @if (visit.nextDate) {
+                      <dt>Próximo control</dt>
+                      <dd>{{ formatDay(visit.nextDate, true) }}{{ visit.nextDone ? ' (cumplido)' : '' }}</dd>
+                    }
+                    @if (visit.notes) {
+                      <dt>Notas</dt>
+                      <dd class="notes">{{ visit.notes }}</dd>
+                    }
+                  </dl>
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    @if (confirmDelete() === visit.id) {
+                      <span class="small">¿Borrar esta consulta?</span>
+                      <button type="button" class="btn btn-sm btn-danger" (click)="remove(visit)" [disabled]="busy()">Sí, borrar</button>
+                      <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmDelete.set(null)">No</button>
+                    } @else {
+                      <button type="button" class="btn btn-sm btn-outline-primary" (click)="edit(visit)">
+                        <i class="fa-solid fa-pen me-1" aria-hidden="true"></i>Editar
+                      </button>
+                      <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="confirmDelete.set(visit.id)">Borrar</button>
+                    }
+                  </div>
+                </div>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
+  </div>
+}

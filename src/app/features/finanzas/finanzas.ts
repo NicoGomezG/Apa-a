@@ -7,6 +7,7 @@ const TABS = [
   { path: 'movimientos', label: 'Movimientos', icon: 'fa-list' },
   { path: 'cuentas', label: 'Cuentas', icon: 'fa-building-columns' },
   { path: 'suscripciones', label: 'Suscripciones', icon: 'fa-repeat' },
+  { path: 'cuentas-fijas', label: 'Cuentas fijas', icon: 'fa-file-invoice-dollar' },
   { path: 'deudas', label: 'Deudas', icon: 'fa-hand-holding-dollar' },
   { path: 'importar', label: 'Importar', icon: 'fa-file-import' },
 ];
@@ -20,7 +21,7 @@ const TABS = [
       title="Finanzas"
       icon="fa-wallet"
       module="finanzas"
-      subtitle="Tus gastos, cuentas, compras en cuotas y suscripciones."
+      subtitle="Tus gastos, cuentas, compras en cuotas, suscripciones y cuentas fijas."
     />
     <nav class="finance-tabs mb-4" aria-label="Secciones de Finanzas">
       @for (tab of tabs; track tab.path) {

@@ -1,3 +1,5 @@
+import { billDueIn, billEstimate, paymentFor } from '../bills/bills.math.js';
+import type { BillRecord } from '../bills/bills.repository.js';
 import { addDays, cardCycleFor, dayInMonth, monthOf, subscriptionChargeIn } from './finance.dates.js';
 import { installmentsIn, type InstallmentInMonth } from './finance.summary.js';
 import type {
@@ -24,7 +26,7 @@ export interface CalendarPayment {
   /** Identificador estable del pago: tipo, origen y fecha. */
   key: string;
   date: string;
-  type: 'subscription' | 'card';
+  type: 'subscription' | 'card' | 'bill';
   label: string;
   /** null si no hay cómo estimarlo. */
   amount: bigint | null;
@@ -33,6 +35,7 @@ export interface CalendarPayment {
   estimated: boolean;
   accountId: string | null;
   subscriptionId: string | null;
+  billId: string | null;
   /** paid: hay un movimiento que lo calza · pending: aún no vence · unconfirmed: venció y no aparece. */
   status: PaymentStatus;
   matchedTransaction: { id: string; date: string } | null;
@@ -48,6 +51,7 @@ export interface CalendarInput {
   plans: InstallmentPlanRecord[];
   subscriptions: SubscriptionRecord[];
   statements: StatementRecord[];
+  bills?: BillRecord[];
 }
 
 /** Rango de movimientos que necesita `computeCalendar` para el mes y el ciclo abierto. */
@@ -143,6 +147,7 @@ export function computeCalendar(input: CalendarInput): CalendarPayment[] {
       estimated,
       accountId: account.id,
       subscriptionId: null,
+      billId: null,
       status: statusFor(date, matched),
       matchedTransaction: matched ? { id: matched.id, date: matched.date } : null,
       installments,
@@ -175,8 +180,32 @@ export function computeCalendar(input: CalendarInput): CalendarPayment[] {
       estimated: false,
       accountId: sub.accountId,
       subscriptionId: sub.id,
+      billId: null,
       status: statusFor(date, matched),
       matchedTransaction: matched ? { id: matched.id, date: matched.date } : null,
+      installments: [],
+    });
+  }
+
+  // --- Cuentas fijas: pagadas si se anotó el pago del mes ----------------------
+  for (const bill of input.bills ?? []) {
+    if (!bill.active) continue;
+    const date = billDueIn(bill, month);
+    if (!date) continue;
+    const payment = paymentFor(bill, month);
+    payments.push({
+      key: `bill:${bill.id}:${date}`,
+      date,
+      type: 'bill',
+      label: bill.name,
+      amount: payment ? payment.amount : billEstimate(bill),
+      currency: bill.currency,
+      estimated: !payment,
+      accountId: bill.accountId,
+      subscriptionId: null,
+      billId: bill.id,
+      status: payment ? 'paid' : date >= today ? 'pending' : 'unconfirmed',
+      matchedTransaction: null,
       installments: [],
     });
   }

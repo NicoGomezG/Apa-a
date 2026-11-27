@@ -54,13 +54,14 @@
         <h2 id="base" class="apana-section-title">
           <i class="fa-solid fa-calendar-check" aria-hidden="true"></i>Gasto base por mes
         </h2>
-        <p class="text-secondary small">Lo que ya está comprometido: suscripciones y cuotas.</p>
+        <p class="text-secondary small">Lo mínimo que necesitas: suscripciones, <a routerLink="/finanzas/cuentas-fijas">cuentas fijas</a> (lo pagado o su estimado) y cuotas.</p>
         <div class="table-responsive">
           <table class="table table-sm align-middle mb-0">
             <thead>
               <tr>
                 <th scope="col">Mes</th>
                 <th scope="col" class="text-end"><span class="d-none d-sm-inline">Suscripciones</span><span class="d-sm-none" aria-hidden="true">Suscr.</span><span class="visually-hidden d-sm-none">Suscripciones</span></th>
+                <th scope="col" class="text-end">Cuentas</th>
                 <th scope="col" class="text-end">Cuotas</th>
                 <th scope="col" class="text-end">Total</th>
               </tr>
@@ -70,6 +71,7 @@
                 <tr>
                   <td class="text-capitalize">{{ formatMonth(row.month, true) }}</td>
                   <td class="text-end">{{ row.subscriptions | money: s.currency }}</td>
+                  <td class="text-end">{{ row.bills | money: s.currency }}</td>
                   <td class="text-end">{{ row.installments | money: s.currency }}</td>
                   <td class="text-end fw-semibold">{{ row.total | money: s.currency }}</td>
                 </tr>
@@ -130,11 +132,11 @@
             <li class="d-flex justify-content-between align-items-start gap-2">
               <div class="min-w-0">
                 <div class="fw-semibold text-truncate">
-                  <i class="fa-solid {{ item.type === 'card' ? 'fa-credit-card' : 'fa-repeat' }} me-1" aria-hidden="true"></i>
+                  <i class="fa-solid {{ paymentIcon(item.type) }} me-1" aria-hidden="true"></i>
                   {{ item.label }}
                 </div>
                 <div class="small text-secondary">
-                  {{ formatDay(item.date) }}@if (item.estimated) { · estimado, aún sin facturar }
+                  {{ formatDay(item.date) }}@if (item.type === 'bill') { · cuenta fija, estimado } @else if (item.estimated) { · estimado, aún sin facturar }
                 </div>
               </div>
               <span class="fw-semibold text-nowrap">{{ item.amount | money: item.currency }}</span>

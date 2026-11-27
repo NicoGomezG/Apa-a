@@ -196,7 +196,7 @@ export interface Statement {
 
 export interface UpcomingPayment {
   date: string;
-  type: 'card' | 'subscription';
+  type: 'card' | 'subscription' | 'bill';
   label: string;
   amount: string;
   currency: string;
@@ -226,7 +226,7 @@ export interface FinanceSummary {
     category: Category | null;
   }[];
   /** `subscriptions` ya incluye lo convertido desde otras monedas (`converted`). */
-  base: { month: string; subscriptions: string; converted: string; installments: string; total: string }[];
+  base: { month: string; subscriptions: string; converted: string; bills: string; installments: string; total: string }[];
   /** Suscripciones del mes en otra moneda; `converted` = equivalente en pesos, null si no hubo tipo de cambio. */
   foreignSubscriptions: {
     currency: string;
@@ -291,13 +291,14 @@ export type PaymentStatus = 'paid' | 'pending' | 'unconfirmed';
 export interface CalendarPayment {
   key: string;
   date: string;
-  type: 'card' | 'subscription';
+  type: 'card' | 'subscription' | 'bill';
   label: string;
   amount: string | null;
   currency: string;
   estimated: boolean;
   accountId: string | null;
   subscriptionId: string | null;
+  billId: string | null;
   status: PaymentStatus;
   matchedTransaction: { id: string; date: string } | null;
   installments: FinanceSummary['installments'];
@@ -401,4 +402,107 @@ export interface DebtPayload {
   amount: string;
   currency: string;
   date: string;
+}
+
+// --- Cuentas fijas (agua, luz, internet…) -------------------------------------------
+
+export const BILL_KINDS = [
+  { key: 'agua', label: 'Agua', icon: 'fa-droplet' },
+  { key: 'luz', label: 'Luz', icon: 'fa-bolt' },
+  { key: 'gas', label: 'Gas', icon: 'fa-fire-flame-simple' },
+  { key: 'internet', label: 'Internet', icon: 'fa-wifi' },
+  { key: 'celular', label: 'Celular', icon: 'fa-mobile-screen' },
+  { key: 'gastos_comunes', label: 'Gastos comunes', icon: 'fa-building' },
+  { key: 'arriendo', label: 'Arriendo o dividendo', icon: 'fa-house' },
+  { key: 'seguro', label: 'Seguro', icon: 'fa-shield-halved' },
+  { key: 'educacion', label: 'Colegio o jardín', icon: 'fa-graduation-cap' },
+  { key: 'tag', label: 'TAG / autopista', icon: 'fa-road' },
+  { key: 'salud', label: 'Plan de salud', icon: 'fa-heart-pulse' },
+  { key: 'otra', label: 'Otra', icon: 'fa-file-invoice-dollar' },
+] as const;
+export type BillKind = (typeof BILL_KINDS)[number]['key'];
+
+export const BILL_EVERY_MONTHS = [
+  { value: 1, label: 'Todos los meses' },
+  { value: 2, label: 'Cada 2 meses' },
+  { value: 12, label: 'Una vez al año' },
+] as const;
+export type BillEveryMonths = (typeof BILL_EVERY_MONTHS)[number]['value'];
+
+/** Ícono de un pago según su tipo (tarjeta, suscripción o cuenta fija). */
+export function paymentIcon(type: 'card' | 'subscription' | 'bill'): string {
+  return type === 'card' ? 'fa-credit-card' : type === 'bill' ? 'fa-file-invoice-dollar' : 'fa-repeat';
+}
+
+export const PAYMENT_TYPE_LABELS = { card: 'Pago de tarjeta', subscription: 'Suscripción', bill: 'Cuenta fija' } as const;
+export const PAYMENT_SHORT_LABELS = { card: 'Tarjeta', subscription: 'Suscripción', bill: 'Cuenta fija' } as const;
+
+export function billKindIcon(kind: string): string {
+  return BILL_KINDS.find((item) => item.key === kind)?.icon ?? 'fa-file-invoice-dollar';
+}
+
+export function billKindLabel(kind: string): string {
+  return BILL_KINDS.find((item) => item.key === kind)?.label ?? 'Otra';
+}
+
+export interface BillPayment {
+  id: string;
+  /** 'YYYY-MM' */
+  period: string;
+  amount: string;
+  paidOn: string;
+}
+
+/** paid: pagada este mes · pending: aún no vence · overdue: venció y no está anotada. */
+export type BillStatus = 'paid' | 'pending' | 'overdue';
+
+export interface Bill {
+  id: string;
+  name: string;
+  kind: BillKind;
+  company: string | null;
+  /** Monto estimado que anotó la persona. */
+  amount: string;
+  currency: string;
+  dueDay: number;
+  everyMonths: BillEveryMonths;
+  /** 'YYYY-MM' */
+  startMonth: string;
+  accountId: string | null;
+  autopay: boolean;
+  active: boolean;
+  notes: string | null;
+  /** Pagos, del más reciente al más antiguo. */
+  payments: BillPayment[];
+  /** Promedio de los últimos 3 pagos, o el monto anotado si aún no hay pagos. */
+  estimate: string;
+  /** Vencimiento en el mes consultado (null si ese mes no vence). */
+  dueDate: string | null;
+  payment: BillPayment | null;
+  status: BillStatus | null;
+  nextDue: { period: string; date: string } | null;
+}
+
+export interface BillPayload {
+  name: string;
+  kind: BillKind;
+  company: string | null;
+  amount: string;
+  currency: string;
+  dueDay: number;
+  everyMonths: BillEveryMonths;
+  startMonth?: string;
+  accountId: string | null;
+  autopay: boolean;
+  active: boolean;
+  notes: string | null;
+}
+
+export interface BillsMonth {
+  month: string;
+  today: string;
+  currency: string;
+  /** Moneda principal: lo esperado del mes (pagado o estimado), lo pagado y lo que falta. */
+  totals: { expected: string; paid: string; pending: string };
+  bills: Bill[];
 }

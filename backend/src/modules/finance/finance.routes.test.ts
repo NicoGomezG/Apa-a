@@ -326,7 +326,7 @@ describe('resumen', () => {
     expect(summary.today).toBe('2026-11-25');
     // Gasto de noviembre: metro + cuota 2 de Schilling (28.250). El pago de la tarjeta no cuenta.
     expect(summary.spent.total).toBe(String(1_710 + 28_250));
-    expect(summary.base[0]).toEqual({ month: '2026-11', subscriptions: '6990', converted: '0', installments: '28250', total: '35240' });
+    expect(summary.base[0]).toEqual({ month: '2026-11', subscriptions: '6990', bills: '0', converted: '0', installments: '28250', total: '35240' });
     expect(summary.cards[0].lastStatement.totalBilled).toBe('375160');
     expect(summary.upcoming.map((item: { label: string }) => item.label)).toEqual(['CMR Falabella', 'Spotify']);
   });

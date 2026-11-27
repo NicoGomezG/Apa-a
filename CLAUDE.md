@@ -84,8 +84,11 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 | Personas: contactos + cumpleaños, gastos compartidos (iguales / montos / ítems de boleta, propina 10 %), saldos, pagos, enlace invitados | ✅ (sin probar en navegador) | `modules/people`, `features/personas`, `features/public` |
 | Personas etapa 3: amigos (invitación por enlace o QR), cumpleaños propio, grupos compartidos con amigos (ven, informan pagos, el dueño confirma, recordatorio) | ✅ (sin probar en navegador) | `modules/friends`, `people.shared.routes.ts`, `features/personas/amigos.ts`, `compartido-conmigo.ts`, `unirse.ts` |
 | Finanzas → Deudas: me deben / debo, con abonos, días sin pagar y fecha de pago | ✅ (sin probar en navegador; migración pendiente) | `modules/debts` (`/finance/debts`), `features/finanzas/deudas.*` |
-| Chat: entre amigos (ex amigos = solo lectura) y por grupo de gastos, no leídos en la navegación | ✅ (sin probar en navegador; migración pendiente) | `modules/chat`, `features/personas/chat-thread.ts`, `mensajes.ts`, `chat.service.ts` |
-| Compras, Vehículos, Salud | ⏳ | `layout/navigation.ts` → `UPCOMING_MODULES` |
+| Finanzas → Cuentas fijas: agua, luz, internet… con monto estimado, pago real de cada mes ("Pagada"), suman al gasto base, en Agenda y próximos pagos | ✅ (sin probar en navegador; migración pendiente) | `modules/bills` (`/finance/bills`), `features/finanzas/cuentas-fijas.*` |
+| Chat: entre amigos (ex amigos = solo lectura) y por grupo de gastos, no leídos en la navegación | ✅ (sin probar en navegador) | `modules/chat`, `features/personas/chat-thread.ts`, `mensajes.ts`, `chat.service.ts` |
+| Salud fase A: consultas por especialidad, "repetir en" 1/6/12 meses o fecha a mano, próximos controles ("Ya fui"), en la Agenda | ✅ (sin probar en navegador; migración pendiente) | `modules/health` (`/health/visits`), `features/salud` |
+| Salud fase B (lentes/recambios, medicamentos cada N horas) y fase C (documentos en Storage) | ⏳ | plan acordado: ver *Pendientes* |
+| Compras, Vehículos | ⏳ | `layout/navigation.ts` → `UPCOMING_MODULES` |
 
 ## Mapa del código (lo que no es obvio)
 
@@ -124,6 +127,18 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 - Apodo de un amigo = `nickname` del contacto enlazado (`PUT /friends/:id/nickname`; si no hay contacto, lo crea
   con el nombre del amigo y lo enlaza). `friendName()` muestra el apodo primero. Teléfono propio: `profiles.phone`
   + `share_phone` (apagado por defecto); `listFriends` lo entrega solo si está activo.
+- Personas → Amigos: lista estilo agenda (búsqueda, letras, fila que se despliega) y selector superior
+  "Amigos | Mensajes" (`amigos-tabs.ts`). Mensajes ya no es pestaña propia: la pestaña Amigos queda activa
+  en `/personas/mensajes*` y lleva el contador de no leídos.
+- Salud: `addMonths` (31 ene + 1 mes = 28 feb) vive en `health.routes.ts` y tiene una **copia** en
+  `features/salud/salud.models.ts` para la vista previa: si cambias una, cambia la otra (mismos casos de prueba).
+  `next_date` se guarda (se puede elegir a mano); con `repeatMonths` y sin `nextDate` lo calcula el servidor.
+  "Ya fui" = `POST /visits` con `completesVisitId` (marca `next_done` en la anterior). Agenda muestra controles
+  pendientes y horas agendadas (consultas con fecha futura). La bitácora solo guarda nombres de campos.
+- Cuentas fijas: `bills` + `bill_payments` (uno por cuenta y mes, `period` = día 1). Cálculos en `modules/bills/bills.math.ts`
+  (vence en el mes, estimado = promedio redondeado de los últimos 3 pagos o el monto anotado). Gasto base = suscripciones +
+  cuentas fijas (lo pagado o el estimado) + cuotas. **No** crean movimientos (con la cartola se contarían dos veces): no tocan
+  "gasto del mes". En la Agenda quedan "pagadas" solo si se anotó el pago (no se cruzan con movimientos).
 - Destino tras registrarse/Google: `core/auth/pending-redirect.ts` (localStorage), lo usa `auth-callback`.
   Registro sin confirmar correo ("Confirm email" apagado en Supabase): `signUp` trae sesión y `register.ts`
   navega directo al destino; si no trae sesión (correo ya registrado) muestra "revisa tu correo".
@@ -156,7 +171,13 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Pendientes
 
-- Aplicar las migraciones `20261129000000_debts` y `20261130000000_profile_phone`, luego push.
+- Aplicar las migraciones pendientes (`db:migrate:status`): `20261129000000_debts`, `20261130000000_profile_phone`,
+  `20261201000000_health_visits`, `20261202000000_bills`; luego push.
+- Salud fase B: recambios (nombre, cada N días, inicio, "Los cambié hoy") y medicamentos (cada N horas desde
+  una hora de inicio, desde/hasta, marcar tomada/omitida por toma), tarjeta en Inicio. Tablas
+  `health_trackers` + `health_tracker_events`.
+- Salud fase C: documentos (PDF/JPG/PNG ≤10 MB) en bucket privado de Storage con URL firmada, asociables a una
+  consulta; borrar archivos al eliminar la cuenta (requiere `SUPABASE_SECRET_KEY`).
 - Panel de Supabase → Auth: apagar "Confirm email", Site URL = dominio de producción, agregar
   `<dominio>/auth/callback` y `<dominio>/auth/nueva-clave` a Redirect URLs, plantillas en español,
   activar "Secure password change".
@@ -172,6 +193,9 @@ salud). Ver `README.md` para stack, puesta en marcha y despliegue.
 
 ## Historial (más reciente arriba, una línea por cambio)
 
+- 2026-11-27 · Finanzas → Cuentas fijas (agua, luz, internet…): pago de cada mes y suman al gasto base, Agenda y próximos pagos.
+- 2026-11-27 · Salud fase A: consultas por especialidad con "repetir en" y próximos controles, también en la Agenda.
+- 2026-11-27 · Amigos como lista de contactos (búsqueda + letras) con selector Amigos | Mensajes arriba.
 - 2026-11-27 · Amigos: apodo propio (en el contacto enlazado) y teléfono en el perfil, compartido solo si lo activas.
 - 2026-11-27 · Perfil: la contraseña solo se cambia con el enlace del correo.
 - 2026-11-27 · Amigos: un solo enlace de invitación a la vista (reusa el sin usar; "Crear otro enlace" y anular anteriores).

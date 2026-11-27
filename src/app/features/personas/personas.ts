@@ -1,13 +1,15 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import { PageHeader } from '../../shared/ui/page-header';
 import { ChatService } from './chat.service';
 
 const TABS = [
   { path: 'contactos', label: 'Contactos', icon: 'fa-address-book' },
   { path: 'gastos', label: 'Gastos compartidos', icon: 'fa-receipt' },
-  { path: 'amigos', label: 'Amigos', icon: 'fa-handshake' },
-  { path: 'mensajes', label: 'Mensajes', icon: 'fa-comments' },
+  // Amigos incluye Mensajes (selector dentro de la sección): la pestaña queda activa en ambas.
+  { path: 'amigos', label: 'Amigos', icon: 'fa-handshake', alsoActive: 'mensajes' },
 ];
 
 @Component({
@@ -28,9 +30,10 @@ const TABS = [
           [routerLink]="tab.path"
           routerLinkActive="active"
           ariaCurrentWhenActive="page"
+          [class.active]="tab.alsoActive && inSection(tab.alsoActive)"
         >
           <i class="fa-solid {{ tab.icon }}" aria-hidden="true"></i>{{ tab.label }}
-          @if (tab.path === 'mensajes' && chat.unread() > 0) {
+          @if (tab.path === 'amigos' && chat.unread() > 0) {
             <span class="tab-badge">{{ chat.unread() }}<span class="visually-hidden"> sin leer</span></span>
           }
         </a>
@@ -88,4 +91,17 @@ const TABS = [
 export class Personas {
   protected readonly tabs = TABS;
   protected readonly chat = inject(ChatService);
+  private readonly router = inject(Router);
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.router.url),
+      startWith(this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+
+  protected inSection(path: string): boolean {
+    return this.url().startsWith(`/personas/${path}`);
+  }
 }

@@ -7,6 +7,8 @@ import { createPrisma } from './lib/prisma.js';
 import { createPrismaAccountRepository } from './modules/account/account.repository.js';
 import { createMindicadorRates } from './lib/exchange-rates.js';
 import { createPrismaDebtsRepository } from './modules/debts/debts.repository.js';
+import { createPrismaBillsRepository } from './modules/bills/bills.repository.js';
+import { createPrismaHealthRepository } from './modules/health/health.repository.js';
 import { createPrismaChatRepository } from './modules/chat/chat.repository.js';
 import { createPrismaAuditRepository } from './modules/audit/audit.repository.js';
 import { createPrismaFinanceRepository } from './modules/finance/finance.repository.js';
@@ -30,6 +32,8 @@ export async function createApp(): Promise<FastifyInstance> {
     friends: createPrismaFriendsRepository(prisma),
     chat: createPrismaChatRepository(prisma),
     debts: createPrismaDebtsRepository(prisma),
+    health: createPrismaHealthRepository(prisma),
+    bills: createPrismaBillsRepository(prisma),
     rates: createMindicadorRates(),
   });
   app.addHook('onClose', async () => prisma.$disconnect());

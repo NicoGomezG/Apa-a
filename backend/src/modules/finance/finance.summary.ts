@@ -1,3 +1,5 @@
+import { billAmountIn, billEstimate, nextUnpaidDue } from '../bills/bills.math.js';
+import type { BillRecord } from '../bills/bills.repository.js';
 import { convertToClp, type ExchangeRate } from '../../lib/exchange-rates.js';
 import {
   addDays,
@@ -33,6 +35,8 @@ export interface SummaryInput {
   plans: InstallmentPlanRecord[];
   subscriptions: SubscriptionRecord[];
   statements: StatementRecord[];
+  /** Cuentas fijas (agua, luz…): entran al gasto base con lo pagado o su estimado. */
+  bills?: BillRecord[];
   /**
    * Tipos de cambio a la moneda principal (hoy solo a CLP). Las suscripciones en esas monedas
    * se suman convertidas al gasto base; las demás se informan aparte.
@@ -42,7 +46,7 @@ export interface SummaryInput {
 
 export interface UpcomingPayment {
   date: string;
-  type: 'card' | 'subscription';
+  type: 'card' | 'subscription' | 'bill';
   label: string;
   amount: bigint;
   currency: string;
@@ -119,7 +123,7 @@ export function computeSummary(input: SummaryInput) {
   const spentTotal = spentOf(monthTransactions) + installmentsTotal;
   const income = monthTransactions.filter((tx) => tx.kind === 'income').reduce((sum, tx) => sum + tx.amount, 0n);
 
-  // --- Gasto base: suscripciones + cuotas, mes consultado y siguientes ------
+  // --- Gasto base: suscripciones + cuentas fijas + cuotas, mes consultado y siguientes ------
   const activeSubscriptions = input.subscriptions.filter((sub) => sub.active);
   const rateFor = (code: string) => (currency === 'CLP' ? (input.rates?.get(code) ?? null) : null);
   /** Monto en la moneda principal: igual si ya lo está, convertido si hay tipo de cambio, null si no. */
@@ -140,7 +144,9 @@ export function computeSummary(input: SummaryInput) {
       if (sub.currency !== currency) converted += amount;
     }
     const installments = inCurrency(installmentsIn(input.plans, target)).reduce((sum, item) => sum + item.amount, 0n);
-    return { month: target, subscriptions, converted, installments, total: subscriptions + installments };
+    let bills = 0n;
+    for (const bill of inCurrency(input.bills ?? [])) bills += billAmountIn(bill, target)?.amount ?? 0n;
+    return { month: target, subscriptions, converted, bills, installments, total: subscriptions + bills + installments };
   });
 
   // Suscripciones del mes en otras monedas: con su equivalente si se pudo convertir.
@@ -236,6 +242,20 @@ export function computeSummary(input: SummaryInput) {
       currency: sub.currency,
       estimated: false,
       accountId: sub.accountId,
+    });
+  }
+  for (const bill of input.bills ?? []) {
+    const next = nextUnpaidDue(bill, today);
+    if (!next || next.date > horizon) continue;
+    upcoming.push({
+      date: next.date,
+      type: 'bill',
+      label: bill.name,
+      amount: billEstimate(bill),
+      currency: bill.currency,
+      // El monto real se sabe al pagar: hasta entonces es un estimado.
+      estimated: true,
+      accountId: bill.accountId,
     });
   }
   upcoming.sort((a, b) => a.date.localeCompare(b.date) || a.label.localeCompare(b.label));

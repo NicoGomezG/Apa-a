@@ -239,3 +239,34 @@
     display: none;
   }
 }
+
+// --- Salud --------------------------------------------------------------------
+
+.health-icon {
+  color: var(--apana-module-salud);
+}
+
+.health-name {
+  display: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--apana-module-salud);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health-dot {
+  font-size: 0.65rem;
+  color: var(--apana-module-salud);
+}
+
+@media (min-width: 768px) {
+  .health-name {
+    display: block;
+  }
+  .health-dot {
+    display: none;
+  }
+}

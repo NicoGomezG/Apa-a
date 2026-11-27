@@ -6,22 +6,37 @@ import { formatDay, todayIn } from '../../core/format/format';
 import { apiErrorMessage } from '../../core/http-errors';
 import { ProfileService } from '../../core/profile/profile.service';
 import { EmptyState } from '../../shared/ui/empty-state';
+import { AmigosTabs } from './amigos-tabs';
 import { friendName } from './friends';
 import type { Contact, Friend, FriendInvite } from './people.models';
 import { PeopleService } from './people.service';
 
 type Status = { kind: 'success' | 'error'; message: string } | null;
 
+const nicknameMessage = (draft: string) => (draft.trim() ? 'Guardamos el apodo.' : 'Quitamos el apodo.');
+
+interface FriendRow {
+  friend: Friend;
+  contact: Contact | null;
+  birthday: ReturnType<typeof nextBirthday>;
+}
+
+/** Sin tildes ni mayúsculas, pero conservando la ñ. */
+const normalize = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/ñ/g, '\u0001')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\u0001/g, 'ñ');
+
 /** Amigos con cuenta en Apaña: invitación por enlace, cumpleaños y enlace con tus contactos. */
 @Component({
   selector: 'app-personas-amigos',
-  imports: [FormsModule, RouterLink, EmptyState],
+  imports: [FormsModule, RouterLink, EmptyState, AmigosTabs],
   template: `
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <p class="mb-0">
-        Tus amigos con cuenta en Apaña ven los grupos de gastos donde los agregas, te avisan cuando te pagan y comparten su
-        cumpleaños contigo.
-      </p>
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+      <app-amigos-tabs class="flex-grow-1" />
       <button type="button" class="btn btn-sm btn-primary" (click)="createInvite()" [disabled]="busy()">
         <i class="fa-solid fa-user-plus me-1" aria-hidden="true"></i>Invitar a un amigo
       </button>
@@ -100,90 +115,125 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
         />
       </section>
     } @else {
-      <ul class="list-unstyled row g-3">
-        @for (row of rows(); track row.friend.userId) {
-          <li class="col-12 col-md-6 col-xl-4">
-            <article class="apana-card h-100 d-grid gap-2">
-              <div class="d-flex align-items-center gap-2">
-                <span class="avatar" aria-hidden="true">{{ initial(row.friend) }}</span>
-                <div class="min-w-0 flex-grow-1">
-                  <h3 class="h6 fw-bold mb-0 text-truncate">{{ name(row.friend) }}</h3>
-                  @if (row.friend.nickname && row.friend.displayName) {
-                    <div class="small text-truncate">{{ row.friend.displayName }}</div>
-                  } @else if (row.contact) {
-                    <div class="small text-truncate">En tus contactos: {{ row.contact.name }}</div>
+      <div class="search mb-3">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <label class="visually-hidden" for="buscar-amigo">Buscar amigo</label>
+        <input id="buscar-amigo" type="search" class="form-control" placeholder="Buscar por nombre o apodo"
+               [ngModel]="query()" (ngModelChange)="query.set($event)" />
+      </div>
+
+      @if (groups().length === 0) {
+        <p class="text-center my-4">Ningún amigo coincide con «{{ query() }}».</p>
+      } @else {
+        <section class="apana-card p-0 overflow-hidden" aria-label="Tus amigos">
+          @for (group of groups(); track group.letter) {
+            <h2 class="letter" [id]="'letra-' + group.letter">{{ group.letter }}</h2>
+            <ul class="list-unstyled mb-0" [attr.aria-labelledby]="'letra-' + group.letter">
+              @for (row of group.rows; track row.friend.userId) {
+                <li class="friend" [class.open]="openId() === row.friend.userId">
+                  <div class="friend-row">
+                    <button type="button" class="friend-main" (click)="toggle(row.friend.userId)"
+                            [attr.aria-expanded]="openId() === row.friend.userId" [attr.aria-controls]="'amigo-' + row.friend.userId">
+                      <span class="avatar" aria-hidden="true">{{ initial(row.friend) }}</span>
+                      <span class="min-w-0 text-start">
+                        <span class="d-block fw-semibold text-truncate">{{ name(row.friend) }}</span>
+                        <span class="d-block small text-truncate">{{ subtitle(row) }}</span>
+                      </span>
+                    </button>
+                    <a class="icon-btn" [routerLink]="['/personas/mensajes/amigo', row.friend.userId]"
+                       [attr.aria-label]="'Escribirle a ' + name(row.friend)">
+                      <i class="fa-solid fa-comment" aria-hidden="true"></i>
+                    </a>
+                  </div>
+
+                  @if (openId() === row.friend.userId) {
+                    <div class="friend-detail d-grid gap-3" [id]="'amigo-' + row.friend.userId">
+                      <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-sm btn-primary" [routerLink]="['/personas/mensajes/amigo', row.friend.userId]">
+                          <i class="fa-solid fa-comment me-1" aria-hidden="true"></i>Mensaje
+                        </a>
+                        @if (row.friend.phone; as phone) {
+                          <a class="btn btn-sm btn-outline-primary" [href]="'tel:' + phoneDigits(phone)">
+                            <i class="fa-solid fa-phone me-1" aria-hidden="true"></i>Llamar
+                          </a>
+                          <a class="btn btn-sm btn-outline-primary" [href]="whatsapp(phone)" target="_blank" rel="noopener">
+                            <i class="fa-brands fa-whatsapp me-1" aria-hidden="true"></i>WhatsApp
+                          </a>
+                        }
+                      </div>
+
+                      <dl class="facts mb-0">
+                        @if (row.friend.nickname && row.friend.displayName) {
+                          <dt>Nombre</dt>
+                          <dd>{{ row.friend.displayName }}</dd>
+                        }
+                        <dt>Cumpleaños</dt>
+                        <dd>
+                          @if (row.birthday; as birthday) {
+                            <i class="fa-solid fa-cake-candles accent me-1" aria-hidden="true"></i>{{ birthdayText(row.friend) }} ·
+                            {{ daysUntil(birthday.daysUntil) }}
+                          } @else {
+                            Aún no lo indica
+                          }
+                        </dd>
+                        <dt>Teléfono</dt>
+                        <dd>{{ row.friend.phone ?? 'No lo comparte' }}</dd>
+                        <dt>Amigos desde</dt>
+                        <dd>{{ formatDay(row.friend.since.slice(0, 10)) }}</dd>
+                      </dl>
+
+                      <form class="d-grid gap-1" (ngSubmit)="saveNickname(row.friend)">
+                        <label class="form-label small mb-0" [for]="'nick-' + row.friend.userId">Apodo (solo lo ves tú)</label>
+                        <div class="d-flex gap-2">
+                          <input class="form-control form-control-sm" [id]="'nick-' + row.friend.userId" name="nickname" maxlength="40"
+                                 placeholder="Cómo le dices" [(ngModel)]="nicknameDraft" />
+                          <button type="submit" class="btn btn-sm btn-outline-primary" [disabled]="busy() || nicknameDraft.trim() === (row.friend.nickname ?? '')">
+                            Guardar
+                          </button>
+                        </div>
+                      </form>
+
+                      @if (contacts().length > 0) {
+                        <div>
+                          <label class="form-label small mb-1" [for]="'link-' + row.friend.userId">Contacto enlazado</label>
+                          <select
+                            class="form-select form-select-sm"
+                            [id]="'link-' + row.friend.userId"
+                            [ngModel]="row.friend.contactId"
+                            (ngModelChange)="link(row.friend, $event)"
+                            [disabled]="busy()"
+                          >
+                            <option [ngValue]="null">Ninguno</option>
+                            @for (contact of contacts(); track contact.id) {
+                              <option [ngValue]="contact.id">{{ contact.name }}</option>
+                            }
+                          </select>
+                          <div class="form-text">Así no aparece dos veces en la Agenda.</div>
+                        </div>
+                      }
+
+                      <div class="d-flex flex-wrap align-items-center gap-2">
+                        @if (confirmRemove() === row.friend.userId) {
+                          <span class="small me-2">¿Dejar de ser amigos? Ya no verá tus grupos.</span>
+                          <button type="button" class="btn btn-sm btn-danger" (click)="remove(row.friend)" [disabled]="busy()">Sí, eliminar</button>
+                          <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmRemove.set(null)">No</button>
+                        } @else {
+                          <button type="button" class="btn btn-sm btn-link text-danger p-0" (click)="confirmRemove.set(row.friend.userId)">
+                            Eliminar amigo
+                          </button>
+                        }
+                      </div>
+                    </div>
                   }
-                </div>
-                @if (editingNickname() !== row.friend.userId) {
-                  <button type="button" class="btn btn-sm btn-link p-0 flex-none" (click)="startNickname(row.friend)"
-                          [attr.aria-label]="'Apodo para ' + name(row.friend)">
-                    {{ row.friend.nickname ? 'Cambiar apodo' : 'Ponerle apodo' }}
-                  </button>
-                }
-              </div>
-              @if (editingNickname() === row.friend.userId) {
-                <form class="d-flex gap-2" (ngSubmit)="saveNickname(row.friend)">
-                  <label class="visually-hidden" [for]="'nick-' + row.friend.userId">Apodo</label>
-                  <input class="form-control form-control-sm" [id]="'nick-' + row.friend.userId" name="nickname" maxlength="40"
-                         placeholder="Cómo le dices" [(ngModel)]="nicknameDraft" />
-                  <button type="submit" class="btn btn-sm btn-primary" [disabled]="busy()">Guardar</button>
-                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="editingNickname.set(null)">Cancelar</button>
-                </form>
-                <div class="form-text mt-0">Solo lo ves tú. Déjalo vacío para quitarlo.</div>
+                </li>
               }
-              @if (row.friend.phone; as phone) {
-                <div class="d-flex flex-wrap align-items-center gap-2 small">
-                  <i class="fa-solid fa-phone cake" aria-hidden="true"></i>
-                  <a [href]="'tel:' + phoneDigits(phone)">{{ phone }}</a>
-                  <a class="btn btn-sm btn-outline-primary py-0" [href]="whatsapp(phone)" target="_blank" rel="noopener">
-                    <i class="fa-brands fa-whatsapp me-1" aria-hidden="true"></i>WhatsApp
-                  </a>
-                </div>
-              }
-              <div class="small">
-                @if (row.birthday; as birthday) {
-                  <i class="fa-solid fa-cake-candles cake me-1" aria-hidden="true"></i>{{ birthdayText(row.friend) }} ·
-                  {{ daysUntil(birthday.daysUntil) }}
-                } @else {
-                  Aún no indica su cumpleaños.
-                }
-              </div>
-              @if (contacts().length > 0) {
-                <div>
-                  <label class="form-label small mb-1" [for]="'link-' + row.friend.userId">Contacto enlazado</label>
-                  <select
-                    class="form-select form-select-sm"
-                    [id]="'link-' + row.friend.userId"
-                    [ngModel]="row.friend.contactId"
-                    (ngModelChange)="link(row.friend, $event)"
-                    [disabled]="busy()"
-                  >
-                    <option [ngValue]="null">Ninguno</option>
-                    @for (contact of contacts(); track contact.id) {
-                      <option [ngValue]="contact.id">{{ contact.name }}</option>
-                    }
-                  </select>
-                  <div class="form-text">Así no aparece dos veces en la Agenda.</div>
-                </div>
-              }
-              <div class="mt-auto d-flex flex-wrap align-items-center gap-2">
-                <a class="btn btn-sm btn-primary" [routerLink]="['/personas/mensajes/amigo', row.friend.userId]">
-                  <i class="fa-solid fa-comment me-1" aria-hidden="true"></i>Mensaje
-                </a>
-                @if (confirmRemove() === row.friend.userId) {
-                  <span class="small me-2">¿Dejar de ser amigos? Ya no verá tus grupos.</span>
-                  <button type="button" class="btn btn-sm btn-danger me-1" (click)="remove(row.friend)" [disabled]="busy()">Sí</button>
-                  <button type="button" class="btn btn-sm btn-outline-primary" (click)="confirmRemove.set(null)">No</button>
-                } @else {
-                  <button type="button" class="btn btn-sm btn-outline-danger" (click)="confirmRemove.set(row.friend.userId)">Eliminar amigo</button>
-                }
-              </div>
-            </article>
-          </li>
-        }
-      </ul>
+            </ul>
+          }
+        </section>
+      }
       <p class="small mt-3 mb-0">
-        Para compartir gastos, agrégalos a un grupo desde <a routerLink="/personas/gastos">Gastos compartidos</a>.
+        {{ friends().length === 1 ? '1 amigo' : friends().length + ' amigos' }}. Para compartir gastos, agrégalos a un grupo desde
+        <a routerLink="/personas/gastos">Gastos compartidos</a>.
       </p>
     }
   `,
@@ -205,8 +255,92 @@ type Status = { kind: 'success' | 'error'; message: string } | null;
     .flex-none {
       flex: none;
     }
-    .cake {
+    .accent {
       color: var(--apana-section-color);
+    }
+    .search {
+      position: relative;
+    }
+    .search i {
+      position: absolute;
+      left: 0.9rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--apana-mid);
+      pointer-events: none;
+    }
+    .search input {
+      padding-left: 2.4rem;
+    }
+    .letter {
+      margin: 0;
+      padding: 0.35rem 1rem;
+      background: var(--bs-tertiary-bg);
+      border-bottom: 1px solid var(--bs-border-color);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--apana-ink-soft);
+    }
+    .friend + .friend {
+      border-top: 1px solid var(--bs-border-color);
+    }
+    ul + .letter {
+      border-top: 1px solid var(--bs-border-color);
+    }
+    .friend-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-right: 0.75rem;
+    }
+    .friend-main {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex: 1;
+      min-width: 0;
+      padding: 0.7rem 0 0.7rem 1rem;
+      border: 0;
+      background: none;
+      color: inherit;
+    }
+    .friend-row:hover,
+    .friend.open .friend-row {
+      background: var(--bs-tertiary-bg);
+    }
+    .icon-btn {
+      display: inline-grid;
+      place-items: center;
+      flex: none;
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 50%;
+      color: var(--bs-body-color);
+      border: 1px solid var(--bs-border-color);
+      background: var(--bs-body-bg);
+    }
+    .friend-detail {
+      padding: 0.25rem 1rem 1rem calc(1rem + 2.25rem + 0.75rem);
+      background: var(--bs-tertiary-bg);
+    }
+    @media (max-width: 575.98px) {
+      .friend-detail {
+        padding-left: 1rem;
+      }
+    }
+    .facts {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 0.25rem 1rem;
+      font-size: 0.875rem;
+    }
+    .facts dt {
+      font-weight: 500;
+      color: var(--apana-ink-soft);
+    }
+    .facts dd {
+      margin: 0;
     }
     .qr-panel {
       display: grid;
@@ -250,7 +384,6 @@ export class PersonasAmigos {
   protected readonly confirmRemove = signal<string | null>(null);
   protected readonly qrFor = signal<string | null>(null);
   protected readonly qrImage = signal<string | null>(null);
-  protected readonly editingNickname = signal<string | null>(null);
   protected nicknameDraft = '';
 
   private readonly today = todayIn(this.profile.timezone());
@@ -260,7 +393,7 @@ export class PersonasAmigos {
   protected readonly current = computed(() => this.sortedInvites()[0] ?? null);
   protected readonly older = computed(() => this.sortedInvites().slice(1));
 
-  protected readonly rows = computed(() => {
+  protected readonly rows = computed((): FriendRow[] => {
     const contacts = new Map(this.contacts().map((contact) => [contact.id, contact]));
     return this.friends()
       .map((friend) => ({
@@ -268,7 +401,26 @@ export class PersonasAmigos {
         contact: friend.contactId ? (contacts.get(friend.contactId) ?? null) : null,
         birthday: nextBirthday({ id: friend.userId, name: friendName(friend), ...friend, birthYear: null }, this.today),
       }))
-      .sort((a, b) => friendName(a.friend).localeCompare(friendName(b.friend)));
+      .sort((a, b) => friendName(a.friend).localeCompare(friendName(b.friend), 'es'));
+  });
+
+  protected readonly query = signal('');
+  protected readonly openId = signal<string | null>(null);
+
+  /** Lista estilo agenda del teléfono: filtrada por nombre/apodo y agrupada por inicial. */
+  protected readonly groups = computed(() => {
+    const query = normalize(this.query().trim());
+    const groups: { letter: string; rows: FriendRow[] }[] = [];
+    for (const row of this.rows()) {
+      const haystack = normalize(`${row.friend.nickname ?? ''} ${row.friend.displayName ?? ''} ${row.contact?.name ?? ''}`);
+      if (query && !haystack.includes(query)) continue;
+      const first = normalize(friendName(row.friend)).charAt(0).toUpperCase();
+      const letter = /[A-ZÑ]/.test(first) ? first : '#';
+      const last = groups.at(-1);
+      if (last?.letter === letter) last.rows.push(row);
+      else groups.push({ letter, rows: [row] });
+    }
+    return groups;
   });
 
   constructor() {
@@ -394,9 +546,18 @@ export class PersonasAmigos {
     });
   }
 
-  protected startNickname(friend: Friend): void {
-    this.nicknameDraft = friend.nickname ?? '';
-    this.editingNickname.set(friend.userId);
+  protected toggle(friendId: string): void {
+    const opening = this.openId() !== friendId;
+    this.openId.set(opening ? friendId : null);
+    this.confirmRemove.set(null);
+    if (opening) this.nicknameDraft = this.friends().find((item) => item.userId === friendId)?.nickname ?? '';
+  }
+
+  /** Segunda línea de la fila: su nombre real si tiene apodo, si no el próximo cumpleaños. */
+  protected subtitle(row: FriendRow): string {
+    if (row.friend.nickname && row.friend.displayName) return row.friend.displayName;
+    if (row.birthday) return 'Cumpleaños: ' + this.birthdayText(row.friend);
+    return row.friend.phone ?? 'En Apaña';
   }
 
   protected async saveNickname(friend: Friend): Promise<void> {
@@ -405,8 +566,7 @@ export class PersonasAmigos {
       this.friends.update((list) => list.map((item) => (item.userId === friend.userId ? updated : item)));
       // Si no tenía contacto enlazado, el backend creó uno: recargar para que aparezca en el selector.
       if (!friend.contactId && updated.contactId) this.contacts.set(await this.people.contacts());
-      this.editingNickname.set(null);
-    });
+    }, nicknameMessage(this.nicknameDraft));
   }
 
   protected phoneDigits(phone: string): string {

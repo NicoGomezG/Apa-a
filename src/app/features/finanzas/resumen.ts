@@ -5,7 +5,7 @@ import { MoneyPipe } from '../../core/format/money.pipe';
 import { apiErrorMessage } from '../../core/http-errors';
 import { ProfileService } from '../../core/profile/profile.service';
 import { EmptyState } from '../../shared/ui/empty-state';
-import { categoryIcon, categoryLabel, type Account, type FinanceSummary } from './finance.models';
+import { categoryIcon, categoryLabel, paymentIcon, type Account, type FinanceSummary } from './finance.models';
 import { FinanceService } from './finance.service';
 import { MonthPicker } from '../../shared/ui/month-picker';
 import { TipoCambio } from './tipo-cambio';
@@ -56,6 +56,7 @@ export class FinanzasResumen {
   protected readonly categoryLabel = categoryLabel;
   protected readonly categoryIcon = categoryIcon;
   protected readonly formatDay = formatDay;
+  protected readonly paymentIcon = paymentIcon;
   protected readonly formatMonth = formatMonth;
 
   /** '948520000' → '$948,52' (solo para mostrar; los cálculos van en el backend con enteros). */

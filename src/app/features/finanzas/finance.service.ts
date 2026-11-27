@@ -3,6 +3,9 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment.generated';
 import type {
+  Bill,
+  BillPayload,
+  BillsMonth,
   Debt,
   DebtPayload,
   ExchangeRate,
@@ -116,6 +119,27 @@ export class FinanceService {
   }
   deleteDebtPayment(id: string, paymentId: string) {
     return firstValueFrom(this.http.delete<Debt>(`${this.api}/debts/${id}/payments/${paymentId}`));
+  }
+
+  // --- Cuentas fijas ---
+  bills(month?: string) {
+    return this.get<BillsMonth>('/bills', { month });
+  }
+  createBill(payload: BillPayload) {
+    return firstValueFrom(this.http.post<Bill>(`${this.api}/bills`, payload));
+  }
+  updateBill(id: string, payload: Partial<BillPayload>) {
+    return firstValueFrom(this.http.patch<Bill>(`${this.api}/bills/${id}`, payload));
+  }
+  deleteBill(id: string) {
+    return firstValueFrom(this.http.delete<void>(`${this.api}/bills/${id}`));
+  }
+  /** Anota (o corrige) el pago de un mes ('YYYY-MM'). */
+  payBill(id: string, period: string, payload: { amount: string; paidOn: string }) {
+    return firstValueFrom(this.http.put<Bill>(`${this.api}/bills/${id}/payments/${period}`, payload));
+  }
+  unpayBill(id: string, period: string) {
+    return firstValueFrom(this.http.delete<Bill>(`${this.api}/bills/${id}/payments/${period}`));
   }
 
   // --- Importación ---

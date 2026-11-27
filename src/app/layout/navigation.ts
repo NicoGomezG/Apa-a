@@ -48,12 +48,4 @@ export const UPCOMING_MODULES: Record<string, UpcomingModule> = {
     summary: 'Mantenciones, combustible y vencimientos de revisión técnica, permiso de circulación y seguros.',
     features: ['Kilometraje e historial', 'Combustible y rendimiento', 'Mantenciones y talleres', 'Avisos por fecha o kilometraje'],
   },
-  salud: {
-    key: 'salud',
-    title: 'Salud',
-    icon: 'fa-heart-pulse',
-    phase: 6,
-    summary: 'Tus controles, profesionales y exámenes ordenados, con protección reforzada.',
-    features: ['Profesionales y centros', 'Citas y controles', 'Exámenes y documentos', 'Recordatorios de próximos controles'],
-  },
 };
